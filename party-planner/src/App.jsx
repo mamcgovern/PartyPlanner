@@ -5,8 +5,8 @@ import Sidebar from "./components/Sidebar";
 import Dashboard from "./pages/Dashboard";
 import Guests from "./pages/Guests";
 import FoodDrinks from "./pages/FoodDrinks";
+import Shopping from "./pages/Shopping";
 import Decorations from "./pages/Decorations";
-import Recipes from "./pages/Recipes";
 import Tasks from "./pages/Tasks";
 import Notes from "./pages/Notes";
 
@@ -26,17 +26,24 @@ function App() {
           />
 
           <Route
+            path="/shopping"
+            element={<Shopping />}
+          />
+
+          <Route
             path="/decorations"
             element={<Decorations />}
           />
 
           <Route
-            path="/recipes"
-            element={<Recipes />}
+            path="/tasks"
+            element={<Tasks />}
           />
 
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/notes" element={<Notes />} />
+          <Route
+            path="/notes"
+            element={<Notes />}
+          />
         </Routes>
       </main>
     </div>

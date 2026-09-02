@@ -1,20 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import {
   addDoc,
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
-  orderBy,
-  query,
   serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
+
 import { db } from "../services/firebase";
 
 const PARTY_ID = "halloween-25";
-
-const typeOptions = ["Food", "Drink"];
 
 const foodCategories = [
   "Appetizer",
@@ -28,6 +31,7 @@ const foodCategories = [
 const drinkCategories = [
   "Cocktail",
   "Punch",
+  "Shot",
   "Beer",
   "Wine",
   "Soda",
@@ -35,24 +39,118 @@ const drinkCategories = [
   "Other",
 ];
 
-const defaultFormData = {
+const defaultIngredient = {
+  name: "",
+  amount: "",
+  unit: "",
+};
+
+const getDefaultFormData = () => ({
   name: "",
   type: "Food",
   category: "Appetizer",
-  calculationType: "perGuest",
-  amountPerGuest: 1,
-  servingsPerUnit: 1,
-  plannedQuantity: "",
-  unitName: "servings",
+
+  fulfillmentType: "recipe",
+
+  plannedServings: 10,
+
+  recipeServings: 10,
+
+  ingredients: [
+    {
+      ...defaultIngredient,
+    },
+  ],
+
+  instructions: "",
+
+  purchaseQuantity: 1,
+  purchaseUnit: "",
+  store: "",
+  estimatedPrice: "",
+  shoppingLink: "",
+
   notes: "",
+});
+
+const normalizeMenuItem = (item) => {
+  const fulfillmentType =
+    item.fulfillmentType ??
+    (item.ingredients?.length > 0
+      ? "recipe"
+      : "purchased");
+
+  let plannedServings =
+    item.plannedServings;
+
+  if (
+    plannedServings === undefined ||
+    plannedServings === null
+  ) {
+    plannedServings =
+      item.plannedQuantity ?? 0;
+  }
+
+  return {
+    ...item,
+
+    fulfillmentType,
+
+    plannedServings,
+
+    recipeServings:
+      item.recipeServings ??
+      item.servingsPerUnit ??
+      1,
+
+    ingredients:
+      item.ingredients ?? [],
+
+    instructions:
+      item.instructions ?? "",
+
+    purchaseQuantity:
+      item.purchaseQuantity ??
+      item.plannedQuantity ??
+      1,
+
+    purchaseUnit:
+      item.purchaseUnit ??
+      item.unitName ??
+      "",
+
+    store:
+      item.store ?? "",
+
+    estimatedPrice:
+      item.estimatedPrice ?? null,
+
+    shoppingLink:
+      item.shoppingLink ??
+      item.link ??
+      "",
+
+    notes:
+      item.notes ?? "",
+  };
 };
 
 function FoodDrinks() {
   const [items, setItems] = useState([]);
-  const [expectedAttendance, setExpectedAttendance] =
-    useState(0);
 
-  const [loading, setLoading] = useState(true);
+  const [
+    expectedAttendance,
+    setExpectedAttendance,
+  ] = useState(0);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [loadError, setLoadError] =
+    useState("");
 
   const [activeTab, setActiveTab] =
     useState("All");
@@ -60,11 +158,21 @@ function FoodDrinks() {
   const [showForm, setShowForm] =
     useState(false);
 
-  const [editingItemId, setEditingItemId] =
-    useState(null);
+  const [
+    editingItemId,
+    setEditingItemId,
+  ] = useState(null);
 
   const [formData, setFormData] =
-    useState(defaultFormData);
+    useState(
+      getDefaultFormData(),
+    );
+
+  /*
+   * ================================
+   * LOAD PARTY SETTINGS
+   * ================================
+   */
 
   useEffect(() => {
     const partyRef = doc(
@@ -81,7 +189,14 @@ function FoodDrinks() {
         }
 
         setExpectedAttendance(
-          snapshot.data().expectedAttendance ?? 0,
+          snapshot.data()
+            .expectedAttendance ?? 0,
+        );
+      },
+      (error) => {
+        console.error(
+          "Error loading party:",
+          error,
         );
       },
     );
@@ -89,237 +204,512 @@ function FoodDrinks() {
     return unsubscribe;
   }, []);
 
+  /*
+   * ================================
+   * LOAD MENU ITEMS
+   * ================================
+   */
+
   useEffect(() => {
-    const itemsRef = collection(
+    const menuRef = collection(
       db,
       "parties",
       PARTY_ID,
       "menuItems",
     );
 
-    const itemsQuery = query(
-      itemsRef,
-      orderBy("createdAt", "asc"),
-    );
+    let unsubscribe = null;
+    let cancelled = false;
 
-    const unsubscribe = onSnapshot(
-      itemsQuery,
-      (snapshot) => {
-        setItems(
-          snapshot.docs.map((itemDoc) => ({
-            id: itemDoc.id,
-            ...itemDoc.data(),
-          })),
-        );
+    const sortItems = (data) => {
+      return [...data].sort((a, b) => {
+        const aTime =
+          a.createdAt?.toMillis?.() ?? 0;
 
-        setLoading(false);
-      },
-      (error) => {
+        const bTime =
+          b.createdAt?.toMillis?.() ?? 0;
+
+        return aTime - bTime;
+      });
+    };
+
+    const loadMenu = async () => {
+      try {
+        const snapshot =
+          await getDocs(menuRef);
+
+        if (cancelled) {
+          return;
+        }
+
+        const data =
+          snapshot.docs.map(
+            (itemDoc) =>
+              normalizeMenuItem({
+                id: itemDoc.id,
+                ...itemDoc.data(),
+              }),
+          );
+
+        setItems(sortItems(data));
+        setLoadError("");
+      } catch (error) {
         console.error(
-          "Error loading menu items:",
+          "Error initially loading menu:",
           error,
         );
 
-        setLoading(false);
-      },
-    );
+        if (!cancelled) {
+          setLoadError(
+            error.message ||
+              "Could not load the menu.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
 
-    return unsubscribe;
+      if (cancelled) {
+        return;
+      }
+
+      unsubscribe = onSnapshot(
+        menuRef,
+        (snapshot) => {
+          if (cancelled) {
+            return;
+          }
+
+          const data =
+            snapshot.docs.map(
+              (itemDoc) =>
+                normalizeMenuItem({
+                  id: itemDoc.id,
+                  ...itemDoc.data(),
+                }),
+            );
+
+          setItems(sortItems(data));
+          setLoadError("");
+        },
+        (error) => {
+          console.error(
+            "Error listening to menu:",
+            error,
+          );
+
+          if (!cancelled) {
+            setLoadError(
+              error.message ||
+                "Could not keep the menu updated.",
+            );
+          }
+        },
+      );
+    };
+
+    loadMenu();
+
+    return () => {
+      cancelled = true;
+
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
-  const visibleItems = useMemo(() => {
-    if (activeTab === "All") {
-      return items;
-    }
+  /*
+   * ================================
+   * FILTERS / COUNTS
+   * ================================
+   */
 
-    return items.filter(
-      (item) => item.type === activeTab,
-    );
-  }, [items, activeTab]);
+  const visibleItems =
+    useMemo(() => {
+      if (activeTab === "All") {
+        return items;
+      }
 
-  const foodItems = items.filter(
-    (item) => item.type === "Food",
-  );
-
-  const drinkItems = items.filter(
-    (item) => item.type === "Drink",
-  );
-
-  const calculateRecommendation = (item) => {
-    if (
-      item.calculationType === "manual"
-    ) {
-      return Number(
-        item.plannedQuantity || 0,
+      return items.filter(
+        (item) =>
+          item.type === activeTab,
       );
-    }
+    }, [items, activeTab]);
 
-    const amountPerGuest = Number(
-      item.amountPerGuest || 0,
-    );
+  const foodCount =
+    items.filter(
+      (item) =>
+        item.type === "Food",
+    ).length;
 
-    const servingsPerUnit = Number(
-      item.servingsPerUnit || 1,
-    );
+  const drinkCount =
+    items.filter(
+      (item) =>
+        item.type === "Drink",
+    ).length;
 
-    const totalNeeded =
-      expectedAttendance * amountPerGuest;
+  const recipeCount =
+    items.filter(
+      (item) =>
+        item.fulfillmentType ===
+        "recipe",
+    ).length;
 
-    return Math.ceil(
-      totalNeeded /
-        Math.max(servingsPerUnit, 1),
-    );
-  };
+  const purchasedCount =
+    items.filter(
+      (item) =>
+        item.fulfillmentType ===
+        "purchased",
+    ).length;
 
-  const getPlannedQuantity = (item) => {
-    return Number(
-      item.plannedQuantity || 0,
-    );
-  };
-
-  const getItemStatus = (item) => {
-    if (
-      item.calculationType === "manual"
-    ) {
-      return {
-        label: "Manual",
-        className: "menu-status manual",
-      };
-    }
-
-    const recommended =
-      calculateRecommendation(item);
-
-    const planned =
-      getPlannedQuantity(item);
-
-    if (planned === 0) {
-      return {
-        label: "Not planned",
-        className: "menu-status warning",
-      };
-    }
-
-    if (planned < recommended) {
-      return {
-        label: "Need more",
-        className: "menu-status warning",
-      };
-    }
-
-    return {
-      label: "Enough",
-      className: "menu-status good",
-    };
-  };
+  /*
+   * ================================
+   * FORM
+   * ================================
+   */
 
   const resetForm = () => {
-    setFormData(defaultFormData);
     setEditingItemId(null);
+
+    setFormData(
+      getDefaultFormData(),
+    );
+
     setShowForm(false);
   };
 
   const openAddForm = () => {
+    const defaults =
+      getDefaultFormData();
+
+    defaults.plannedServings =
+      expectedAttendance || 10;
+
+    defaults.recipeServings =
+      expectedAttendance || 10;
+
     setEditingItemId(null);
-    setFormData(defaultFormData);
+    setFormData(defaults);
     setShowForm(true);
   };
 
-  const handleChange = (event) => {
+  const handleChange = (
+    event,
+  ) => {
     const {
       name,
       value,
     } = event.target;
 
-    setFormData((current) => {
-      const updated = {
+    setFormData(
+      (current) => {
+        const updated = {
+          ...current,
+          [name]: value,
+        };
+
+        if (name === "type") {
+          updated.category =
+            value === "Food"
+              ? "Appetizer"
+              : "Cocktail";
+        }
+
+        return updated;
+      },
+    );
+  };
+
+  const setFulfillmentType = (
+    fulfillmentType,
+  ) => {
+    setFormData(
+      (current) => ({
         ...current,
-        [name]: value,
+        fulfillmentType,
+      }),
+    );
+  };
+
+  /*
+   * ================================
+   * INGREDIENT EDITING
+   * ================================
+   */
+
+  const addIngredient = () => {
+    setFormData(
+      (current) => ({
+        ...current,
+
+        ingredients: [
+          ...current.ingredients,
+          {
+            ...defaultIngredient,
+          },
+        ],
+      }),
+    );
+  };
+
+  const updateIngredient = (
+    index,
+    field,
+    value,
+  ) => {
+    setFormData(
+      (current) => ({
+        ...current,
+
+        ingredients:
+          current.ingredients.map(
+            (
+              ingredient,
+              ingredientIndex,
+            ) =>
+              ingredientIndex ===
+              index
+                ? {
+                    ...ingredient,
+                    [field]: value,
+                  }
+                : ingredient,
+          ),
+      }),
+    );
+  };
+
+  const removeIngredient = (
+    index,
+  ) => {
+    setFormData(
+      (current) => {
+        const updatedIngredients =
+          current.ingredients.filter(
+            (
+              _,
+              ingredientIndex,
+            ) =>
+              ingredientIndex !==
+              index,
+          );
+
+        return {
+          ...current,
+
+          ingredients:
+            updatedIngredients.length >
+            0
+              ? updatedIngredients
+              : [
+                  {
+                    ...defaultIngredient,
+                  },
+                ],
+        };
+      },
+    );
+  };
+
+  /*
+   * ================================
+   * SAVE
+   * ================================
+   */
+
+  const handleSubmit =
+    async (event) => {
+      event.preventDefault();
+
+      if (saving) {
+        return;
+      }
+
+      const name =
+        formData.name.trim();
+
+      if (!name) {
+        return;
+      }
+
+      const cleanedIngredients =
+        formData.ingredients
+          .map(
+            (ingredient) => ({
+              name:
+                ingredient.name.trim(),
+
+              amount:
+                ingredient.amount ===
+                ""
+                  ? null
+                  : Number(
+                      ingredient.amount,
+                    ),
+
+              unit:
+                ingredient.unit.trim(),
+            }),
+          )
+          .filter(
+            (ingredient) =>
+              ingredient.name,
+          );
+
+      const itemData = {
+        name,
+
+        type:
+          formData.type,
+
+        category:
+          formData.category,
+
+        fulfillmentType:
+          formData.fulfillmentType,
+
+        plannedServings:
+          Number(
+            formData.plannedServings,
+          ) || 0,
+
+        notes:
+          formData.notes.trim(),
+
+        updatedAt:
+          serverTimestamp(),
       };
 
-      if (name === "type") {
-        updated.category =
-          value === "Food"
-            ? "Appetizer"
-            : "Cocktail";
+      if (
+        formData.fulfillmentType ===
+        "recipe"
+      ) {
+        itemData.recipeServings =
+          Number(
+            formData.recipeServings,
+          ) || 1;
+
+        itemData.ingredients =
+          cleanedIngredients;
+
+        itemData.instructions =
+          formData.instructions.trim();
+
+        itemData.purchaseQuantity =
+          null;
+
+        itemData.purchaseUnit = "";
+        itemData.store = "";
+        itemData.estimatedPrice =
+          null;
+        itemData.shoppingLink = "";
+      } else {
+        itemData.recipeServings =
+          null;
+
+        itemData.ingredients = [];
+
+        itemData.instructions = "";
+
+        itemData.purchaseQuantity =
+          Number(
+            formData.purchaseQuantity,
+          ) || 1;
+
+        itemData.purchaseUnit =
+          formData.purchaseUnit.trim();
+
+        itemData.store =
+          formData.store.trim();
+
+        itemData.estimatedPrice =
+          formData.estimatedPrice ===
+          ""
+            ? null
+            : Number(
+                formData.estimatedPrice,
+              );
+
+        itemData.shoppingLink =
+          formData.shoppingLink.trim();
       }
 
-      return updated;
-    });
-  };
+      try {
+        setSaving(true);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
+        if (editingItemId) {
+          await updateDoc(
+            doc(
+              db,
+              "parties",
+              PARTY_ID,
+              "menuItems",
+              editingItemId,
+            ),
+            itemData,
+          );
+        } else {
+          await addDoc(
+            collection(
+              db,
+              "parties",
+              PARTY_ID,
+              "menuItems",
+            ),
+            {
+              ...itemData,
 
-    const trimmedName =
-      formData.name.trim();
+              createdAt:
+                serverTimestamp(),
+            },
+          );
+        }
 
-    if (!trimmedName) {
-      return;
-    }
+        /*
+         * Explicitly close the modal
+         * after a successful save.
+         */
+        setShowForm(false);
+        setEditingItemId(null);
 
-    const itemData = {
-      ...formData,
-      name: trimmedName,
-
-      amountPerGuest: Number(
-        formData.amountPerGuest || 0,
-      ),
-
-      servingsPerUnit: Number(
-        formData.servingsPerUnit || 1,
-      ),
-
-      plannedQuantity: Number(
-        formData.plannedQuantity || 0,
-      ),
-
-      updatedAt: serverTimestamp(),
+        setFormData(
+          getDefaultFormData(),
+        );
+      } catch (error) {
+        console.error(
+          "Error saving menu item:",
+          error,
+        );
+      } finally {
+        setSaving(false);
+      }
     };
 
-    try {
-      if (editingItemId) {
-        await updateDoc(
-          doc(
-            db,
-            "parties",
-            PARTY_ID,
-            "menuItems",
-            editingItemId,
-          ),
-          itemData,
-        );
-      } else {
-        await addDoc(
-          collection(
-            db,
-            "parties",
-            PARTY_ID,
-            "menuItems",
-          ),
-          {
-            ...itemData,
-            createdAt:
-              serverTimestamp(),
-          },
-        );
-      }
+  /*
+   * ================================
+   * EDIT
+   * ================================
+   */
 
-      resetForm();
-    } catch (error) {
-      console.error(
-        "Error saving menu item:",
-        error,
+  const handleEdit = (
+    originalItem,
+  ) => {
+    const item =
+      normalizeMenuItem(
+        originalItem,
       );
-    }
-  };
 
-  const handleEdit = (item) => {
     setEditingItemId(item.id);
 
     setFormData({
-      name: item.name ?? "",
-      type: item.type ?? "Food",
+      name:
+        item.name ?? "",
+
+      type:
+        item.type ?? "Food",
 
       category:
         item.category ??
@@ -327,46 +717,139 @@ function FoodDrinks() {
           ? "Cocktail"
           : "Appetizer"),
 
-      calculationType:
-        item.calculationType ??
-        "perGuest",
+      fulfillmentType:
+        item.fulfillmentType ??
+        "recipe",
 
-      amountPerGuest:
-        item.amountPerGuest ?? 1,
+      plannedServings:
+        item.plannedServings ?? 0,
 
-      servingsPerUnit:
-        item.servingsPerUnit ?? 1,
+      recipeServings:
+        item.recipeServings ?? 1,
 
-      plannedQuantity:
-        item.plannedQuantity ?? "",
+      ingredients:
+        item.ingredients?.length > 0
+          ? item.ingredients.map(
+              (ingredient) => ({
+                name:
+                  ingredient.name ??
+                  "",
 
-      unitName:
-        item.unitName ?? "servings",
+                amount:
+                  ingredient.amount ??
+                  "",
 
-      notes: item.notes ?? "",
+                unit:
+                  ingredient.unit ??
+                  "",
+              }),
+            )
+          : [
+              {
+                ...defaultIngredient,
+              },
+            ],
+
+      instructions:
+        item.instructions ?? "",
+
+      purchaseQuantity:
+        item.purchaseQuantity ?? 1,
+
+      purchaseUnit:
+        item.purchaseUnit ?? "",
+
+      store:
+        item.store ?? "",
+
+      estimatedPrice:
+        item.estimatedPrice ?? "",
+
+      shoppingLink:
+        item.shoppingLink ?? "",
+
+      notes:
+        item.notes ?? "",
     });
 
     setShowForm(true);
   };
 
-  const handleDelete = async (itemId) => {
-    try {
-      await deleteDoc(
-        doc(
-          db,
-          "parties",
-          PARTY_ID,
-          "menuItems",
-          itemId,
-        ),
-      );
-    } catch (error) {
-      console.error(
-        "Error deleting menu item:",
-        error,
-      );
-    }
+  /*
+   * ================================
+   * DELETE
+   * ================================
+   */
+
+  const handleDelete =
+    async (itemId) => {
+      try {
+        await deleteDoc(
+          doc(
+            db,
+            "parties",
+            PARTY_ID,
+            "menuItems",
+            itemId,
+          ),
+        );
+      } catch (error) {
+        console.error(
+          "Error deleting menu item:",
+          error,
+        );
+      }
+    };
+
+  /*
+   * ================================
+   * RECIPE SCALING
+   * ================================
+   */
+
+  const getRecipeScale = (
+    item,
+  ) => {
+    const recipeServings =
+      Number(
+        item.recipeServings,
+      ) || 1;
+
+    const plannedServings =
+      Number(
+        item.plannedServings,
+      ) || 0;
+
+    return (
+      plannedServings /
+      recipeServings
+    );
   };
+
+  const formatAmount = (
+    value,
+  ) => {
+    const number =
+      Number(value);
+
+    if (
+      !Number.isFinite(number)
+    ) {
+      return value;
+    }
+
+    return (
+      Math.round(
+        number * 100,
+      ) / 100
+    );
+  };
+
+  /*
+   * ================================
+   * RENDER
+   * ================================
+   */
 
   return (
     <div className="page">
@@ -376,20 +859,24 @@ function FoodDrinks() {
             Menu Planning
           </span>
 
-          <h1>Food & Drinks</h1>
+          <h1>
+            Food & Drinks
+          </h1>
 
           <p>
-            Plan the menu and automatically
-            calculate quantities using your
-            expected guest count.
+            Plan everything you&apos;re
+            serving, whether you&apos;re
+            making it yourself or
+            purchasing it ready-made.
           </p>
         </div>
 
         <button
+          type="button"
           className="primary-button"
           onClick={openAddForm}
         >
-          + Add Item
+          + Add Food or Drink
         </button>
       </header>
 
@@ -403,26 +890,36 @@ function FoodDrinks() {
             {expectedAttendance}
           </strong>
 
-          <span>expected guests</span>
+          <span>
+            expected guests
+          </span>
         </div>
 
         <div className="menu-overview-stat">
-          <span>Food Items</span>
+          <span>Food</span>
+
           <strong>
-            {foodItems.length}
+            {foodCount}
           </strong>
         </div>
 
         <div className="menu-overview-stat">
-          <span>Drink Items</span>
+          <span>Drinks</span>
+
           <strong>
-            {drinkItems.length}
+            {drinkCount}
           </strong>
         </div>
 
         <div className="menu-overview-stat">
-          <span>Total Items</span>
-          <strong>{items.length}</strong>
+          <span>
+            Homemade / Purchased
+          </span>
+
+          <strong>
+            {recipeCount} /{" "}
+            {purchasedCount}
+          </strong>
         </div>
       </section>
 
@@ -453,21 +950,36 @@ function FoodDrinks() {
         </div>
       </section>
 
+      {loadError && (
+        <div className="menu-error-banner">
+          <strong>
+            There was a problem loading
+            the menu.
+          </strong>
+
+          <span>
+            {loadError}
+          </span>
+        </div>
+      )}
+
       {loading ? (
         <div className="empty-page-card">
           Loading menu...
         </div>
-      ) : visibleItems.length === 0 ? (
+      ) : visibleItems.length ===
+        0 ? (
         <div className="empty-page-card">
           <div className="menu-empty-content">
             <strong>
-              Nothing planned yet.
+              Nothing on the menu yet.
             </strong>
 
             <span>
-              Add your first food or drink
-              item to start building the
-              party menu.
+              Add food, drinks,
+              appetizers, desserts, or
+              anything else you plan to
+              serve.
             </span>
 
             <button
@@ -475,161 +987,243 @@ function FoodDrinks() {
               className="primary-button"
               onClick={openAddForm}
             >
-              + Add Item
+              + Add First Item
             </button>
           </div>
         </div>
       ) : (
         <section className="menu-card-grid">
-          {visibleItems.map((item) => {
-            const recommendation =
-              calculateRecommendation(item);
+          {visibleItems.map(
+            (item) => {
+              const isRecipe =
+                item.fulfillmentType ===
+                "recipe";
 
-            const planned =
-              getPlannedQuantity(item);
+              const scale =
+                isRecipe
+                  ? getRecipeScale(item)
+                  : 1;
 
-            const status =
-              getItemStatus(item);
+              return (
+                <article
+                  className="menu-item-card"
+                  key={item.id}
+                >
+                  <div className="menu-item-top">
+                    <div>
+                      <span className="menu-type">
+                        {item.type} ·{" "}
+                        {item.category}
+                      </span>
 
-            return (
-              <article
-                className="menu-item-card"
-                key={item.id}
-              >
-                <div className="menu-item-top">
-                  <div>
-                    <span className="menu-type">
-                      {item.type} ·{" "}
-                      {item.category}
+                      <h2>
+                        {item.name}
+                      </h2>
+                    </div>
+
+                    <span
+                      className={
+                        isRecipe
+                          ? "menu-status good"
+                          : "menu-status manual"
+                      }
+                    >
+                      {isRecipe
+                        ? "Recipe"
+                        : "Purchased"}
                     </span>
-
-                    <h2>{item.name}</h2>
                   </div>
 
-                  <span
-                    className={
-                      status.className
-                    }
-                  >
-                    {status.label}
-                  </span>
-                </div>
-
-                {item.calculationType ===
-                "perGuest" ? (
                   <div className="menu-calculation">
                     <div>
                       <span>
-                        Recommended
+                        Planned
                       </span>
 
                       <strong>
-                        {recommendation}
+                        {
+                          item.plannedServings
+                        }
                       </strong>
 
                       <small>
-                        {item.unitName}
+                        servings
                       </small>
                     </div>
 
-                    <div>
-                      <span>Planned</span>
-
-                      <strong>
-                        {planned}
-                      </strong>
-
-                      <small>
-                        {item.unitName}
-                      </small>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="menu-calculation single">
                     <div>
                       <span>
-                        Planned Quantity
+                        {isRecipe
+                          ? "Recipe Makes"
+                          : "Buy"}
                       </span>
 
                       <strong>
-                        {planned}
+                        {isRecipe
+                          ? item.recipeServings
+                          : item.purchaseQuantity}
                       </strong>
 
                       <small>
-                        {item.unitName}
+                        {isRecipe
+                          ? `× ${formatAmount(
+                              scale,
+                            )}`
+                          : item.purchaseUnit ||
+                            "items"}
                       </small>
                     </div>
                   </div>
-                )}
 
-                {item.calculationType ===
-                  "perGuest" && (
-                  <div className="menu-formula">
-                    {item.amountPerGuest}{" "}
-                    serving
-                    {Number(
-                      item.amountPerGuest,
-                    ) === 1
-                      ? ""
-                      : "s"}{" "}
-                    per guest
-                    {" · "}
-                    {item.servingsPerUnit}{" "}
-                    serving
-                    {Number(
-                      item.servingsPerUnit,
-                    ) === 1
-                      ? ""
-                      : "s"}{" "}
-                    per {item.unitName.replace(/s$/, "")}
+                  {isRecipe &&
+                    item.ingredients
+                      ?.length > 0 && (
+                      <div className="menu-ingredient-preview">
+                        <div className="menu-ingredient-preview-header">
+                          Ingredients
+                        </div>
+
+                        <div className="menu-ingredient-preview-list">
+                          {item.ingredients
+                            .slice(0, 4)
+                            .map(
+                              (
+                                ingredient,
+                                index,
+                              ) => (
+                                <div
+                                  className="menu-ingredient-preview-row"
+                                  key={`${ingredient.name}-${index}`}
+                                >
+                                  <span>
+                                    {
+                                      ingredient.name
+                                    }
+                                  </span>
+
+                                  <strong>
+                                    {ingredient.amount !==
+                                      null &&
+                                    ingredient.amount !==
+                                      undefined
+                                      ? formatAmount(
+                                          Number(
+                                            ingredient.amount,
+                                          ) *
+                                            scale,
+                                        )
+                                      : ""}{" "}
+                                    {
+                                      ingredient.unit
+                                    }
+                                  </strong>
+                                </div>
+                              ),
+                            )}
+
+                          {item.ingredients
+                            .length >
+                            4 && (
+                            <span className="menu-ingredient-more">
+                              +
+                              {item
+                                .ingredients
+                                .length -
+                                4}{" "}
+                              more ingredients
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                  {!isRecipe && (
+                    <div className="menu-formula">
+                      {item.store && (
+                        <span>
+                          Buy from{" "}
+                          {item.store}
+                        </span>
+                      )}
+
+                      {item.estimatedPrice !==
+                        null &&
+                        item.estimatedPrice !==
+                          undefined && (
+                          <span>
+                            {" · "}
+                            Estimated $
+                            {Number(
+                              item.estimatedPrice,
+                            ).toFixed(2)}
+                          </span>
+                        )}
+                    </div>
+                  )}
+
+                  {item.notes && (
+                    <p className="menu-notes">
+                      {item.notes}
+                    </p>
+                  )}
+
+                  <div className="menu-card-actions">
+                    {item.shoppingLink && (
+                      <a
+                        href={
+                          item.shoppingLink
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Shop ↗
+                      </a>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleEdit(item)
+                      }
+                    >
+                      Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      className="delete-action"
+                      onClick={() =>
+                        handleDelete(
+                          item.id,
+                        )
+                      }
+                    >
+                      Delete
+                    </button>
                   </div>
-                )}
-
-                {item.notes && (
-                  <p className="menu-notes">
-                    {item.notes}
-                  </p>
-                )}
-
-                <div className="menu-card-actions">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleEdit(item)
-                    }
-                  >
-                    Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    className="delete-action"
-                    onClick={() =>
-                      handleDelete(item.id)
-                    }
-                  >
-                    Delete
-                  </button>
-                </div>
-              </article>
-            );
-          })}
+                </article>
+              );
+            },
+          )}
         </section>
       )}
 
       {showForm && (
         <div
           className="modal-backdrop"
-          onMouseDown={(event) => {
+          onMouseDown={(
+            event,
+          ) => {
             if (
               event.target ===
-              event.currentTarget
+                event.currentTarget &&
+              !saving
             ) {
               resetForm();
             }
           }}
         >
-          <div className="modal-card">
+          <div className="modal-card food-drink-modal">
             <div className="modal-header">
               <div>
                 <span className="card-eyebrow">
@@ -640,7 +1234,7 @@ function FoodDrinks() {
 
                 <h2>
                   {editingItemId
-                    ? "Update Item"
+                    ? "Update Food or Drink"
                     : "Add Food or Drink"}
                 </h2>
               </div>
@@ -649,6 +1243,7 @@ function FoodDrinks() {
                 type="button"
                 className="modal-close"
                 onClick={resetForm}
+                disabled={saving}
               >
                 ×
               </button>
@@ -656,16 +1251,23 @@ function FoodDrinks() {
 
             <form
               className="menu-form"
-              onSubmit={handleSubmit}
+              onSubmit={
+                handleSubmit
+              }
             >
               <label className="full-field">
                 Name
+
                 <input
                   type="text"
                   name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Pizza, Dirty Shirley, cupcakes..."
+                  value={
+                    formData.name
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="Buffalo Chicken Dip"
                   required
                   autoFocus
                 />
@@ -673,132 +1275,383 @@ function FoodDrinks() {
 
               <label>
                 Type
+
                 <select
                   name="type"
-                  value={formData.type}
-                  onChange={handleChange}
+                  value={
+                    formData.type
+                  }
+                  onChange={
+                    handleChange
+                  }
                 >
-                  {typeOptions.map(
-                    (option) => (
+                  <option value="Food">
+                    Food
+                  </option>
+
+                  <option value="Drink">
+                    Drink
+                  </option>
+                </select>
+              </label>
+
+              <label>
+                Category
+
+                <select
+                  name="category"
+                  value={
+                    formData.category
+                  }
+                  onChange={
+                    handleChange
+                  }
+                >
+                  {(formData.type ===
+                  "Food"
+                    ? foodCategories
+                    : drinkCategories
+                  ).map(
+                    (category) => (
                       <option
-                        value={option}
-                        key={option}
+                        value={
+                          category
+                        }
+                        key={
+                          category
+                        }
                       >
-                        {option}
+                        {category}
                       </option>
                     ),
                   )}
                 </select>
               </label>
 
-              <label>
-                Category
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                >
-                  {(formData.type ===
-                  "Food"
-                    ? foodCategories
-                    : drinkCategories
-                  ).map((option) => (
-                    <option
-                      value={option}
-                      key={option}
-                    >
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="fulfillment-section">
+                <span className="card-eyebrow">
+                  How are you getting
+                  this?
+                </span>
+
+                <div className="fulfillment-options">
+                  <button
+                    type="button"
+                    className={
+                      formData.fulfillmentType ===
+                      "recipe"
+                        ? "fulfillment-option recipe active"
+                        : "fulfillment-option recipe"
+                    }
+                    onClick={() =>
+                      setFulfillmentType(
+                        "recipe",
+                      )
+                    }
+                  >
+                    <strong>
+                      Recipe / Homemade
+                    </strong>
+
+                    <span>
+                      Add ingredients and
+                      preparation
+                      instructions.
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      formData.fulfillmentType ===
+                      "purchased"
+                        ? "fulfillment-option purchased active"
+                        : "fulfillment-option purchased"
+                    }
+                    onClick={() =>
+                      setFulfillmentType(
+                        "purchased",
+                      )
+                    }
+                  >
+                    <strong>
+                      Purchased
+                    </strong>
+
+                    <span>
+                      Add the quantity,
+                      store, price, and
+                      shopping link.
+                    </span>
+                  </button>
+                </div>
+              </div>
 
               <label className="full-field">
-                Quantity Planning
-                <select
-                  name="calculationType"
-                  value={
-                    formData.calculationType
-                  }
-                  onChange={handleChange}
-                >
-                  <option value="perGuest">
-                    Calculate from guest count
-                  </option>
+                Planned Servings
 
-                  <option value="manual">
-                    Manual quantity
-                  </option>
-                </select>
+                <input
+                  type="number"
+                  name="plannedServings"
+                  min="0"
+                  step="1"
+                  value={
+                    formData.plannedServings
+                  }
+                  onChange={
+                    handleChange
+                  }
+                />
               </label>
 
-              {formData.calculationType ===
-                "perGuest" && (
+              {formData.fulfillmentType ===
+              "recipe" ? (
                 <>
-                  <label>
-                    Servings Per Guest
+                  <label className="full-field">
+                    Recipe Makes
+
                     <input
                       type="number"
-                      name="amountPerGuest"
+                      name="recipeServings"
+                      min="0.1"
+                      step="0.1"
+                      value={
+                        formData.recipeServings
+                      }
+                      onChange={
+                        handleChange
+                      }
+                    />
+                  </label>
+
+                  <div className="recipe-editor">
+                    <div className="recipe-editor-header">
+                      <div>
+                        <span className="card-eyebrow">
+                          Recipe
+                        </span>
+
+                        <h3>
+                          Ingredients
+                        </h3>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={
+                          addIngredient
+                        }
+                      >
+                        + Ingredient
+                      </button>
+                    </div>
+
+                    <div className="ingredient-editor-list">
+                      {formData.ingredients.map(
+                        (
+                          ingredient,
+                          index,
+                        ) => (
+                          <div
+                            className="ingredient-editor-row"
+                            key={
+                              index
+                            }
+                          >
+                            <input
+                              type="text"
+                              placeholder="Ingredient"
+                              value={
+                                ingredient.name
+                              }
+                              onChange={(
+                                event,
+                              ) =>
+                                updateIngredient(
+                                  index,
+                                  "name",
+                                  event
+                                    .target
+                                    .value,
+                                )
+                              }
+                            />
+
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              placeholder="Amount"
+                              value={
+                                ingredient.amount
+                              }
+                              onChange={(
+                                event,
+                              ) =>
+                                updateIngredient(
+                                  index,
+                                  "amount",
+                                  event
+                                    .target
+                                    .value,
+                                )
+                              }
+                            />
+
+                            <input
+                              type="text"
+                              placeholder="Unit"
+                              value={
+                                ingredient.unit
+                              }
+                              onChange={(
+                                event,
+                              ) =>
+                                updateIngredient(
+                                  index,
+                                  "unit",
+                                  event
+                                    .target
+                                    .value,
+                                )
+                              }
+                            />
+
+                            <button
+                              type="button"
+                              className="ingredient-remove"
+                              onClick={() =>
+                                removeIngredient(
+                                  index,
+                                )
+                              }
+                              aria-label="Remove ingredient"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  </div>
+
+                  <label className="full-field">
+                    Instructions
+
+                    <textarea
+                      name="instructions"
+                      value={
+                        formData.instructions
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      rows="6"
+                      placeholder="How do you make it?"
+                    />
+                  </label>
+                </>
+              ) : (
+                <>
+                  <label>
+                    Quantity to Buy
+
+                    <input
+                      type="number"
+                      name="purchaseQuantity"
                       min="0"
                       step="0.1"
                       value={
-                        formData.amountPerGuest
+                        formData.purchaseQuantity
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
                     />
                   </label>
 
                   <label>
-                    Servings Per Unit
+                    Unit
+
+                    <input
+                      type="text"
+                      name="purchaseUnit"
+                      value={
+                        formData.purchaseUnit
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="pizzas, bags, bottles..."
+                    />
+                  </label>
+
+                  <label>
+                    Store / Vendor
+
+                    <input
+                      type="text"
+                      name="store"
+                      value={
+                        formData.store
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Walmart, Pizza Ranch..."
+                    />
+                  </label>
+
+                  <label>
+                    Estimated Cost
+
                     <input
                       type="number"
-                      name="servingsPerUnit"
-                      min="0.1"
-                      step="0.1"
+                      name="estimatedPrice"
+                      min="0"
+                      step="0.01"
                       value={
-                        formData.servingsPerUnit
+                        formData.estimatedPrice
                       }
-                      onChange={handleChange}
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="0.00"
+                    />
+                  </label>
+
+                  <label className="full-field">
+                    Shopping Link
+
+                    <input
+                      type="url"
+                      name="shoppingLink"
+                      value={
+                        formData.shoppingLink
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="https://..."
                     />
                   </label>
                 </>
               )}
 
-              <label>
-                Planned Quantity
-                <input
-                  type="number"
-                  name="plannedQuantity"
-                  min="0"
-                  step="0.1"
-                  value={
-                    formData.plannedQuantity
-                  }
-                  onChange={handleChange}
-                  placeholder="0"
-                />
-              </label>
-
-              <label>
-                Unit
-                <input
-                  type="text"
-                  name="unitName"
-                  value={formData.unitName}
-                  onChange={handleChange}
-                  placeholder="pizzas, bottles, cans..."
-                />
-              </label>
-
               <label className="full-field">
                 Notes
+
                 <textarea
                   name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  rows="4"
-                  placeholder="Flavor choices, where to order it, prep notes, etc."
+                  value={
+                    formData.notes
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  rows="3"
+                  placeholder="Flavors, prep notes, serving ideas, etc."
                 />
               </label>
 
@@ -806,7 +1659,10 @@ function FoodDrinks() {
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={resetForm}
+                  onClick={
+                    resetForm
+                  }
+                  disabled={saving}
                 >
                   Cancel
                 </button>
@@ -814,10 +1670,13 @@ function FoodDrinks() {
                 <button
                   type="submit"
                   className="primary-button"
+                  disabled={saving}
                 >
-                  {editingItemId
-                    ? "Save Changes"
-                    : "Add Item"}
+                  {saving
+                    ? "Saving..."
+                    : editingItemId
+                      ? "Save Changes"
+                      : "Add to Menu"}
                 </button>
               </div>
             </form>

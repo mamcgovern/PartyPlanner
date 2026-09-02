@@ -1,21 +1,23 @@
 /* ================================
-   FOOD & DRINKS
+   FOOD & DRINKS PAGE
 ================================ */
 
 .menu-overview {
   display: grid;
   grid-template-columns:
-    1.5fr repeat(3, 1fr);
+    1.45fr repeat(3, minmax(0, 1fr));
   gap: 14px;
 
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .menu-overview-main,
 .menu-overview-stat {
+  min-width: 0;
+
   padding: 20px;
 
-  background: white;
+  background: var(--surface);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-medium);
@@ -26,36 +28,32 @@
 .menu-overview-main {
   display: flex;
   align-items: baseline;
-  gap: 9px;
+  flex-wrap: wrap;
+  gap: 8px;
 
   background:
     linear-gradient(
       135deg,
-      #f4dfd0,
-      #eee4ee
+      var(--orange-light),
+      var(--purple-light)
     );
 }
 
 .menu-overview-main .card-eyebrow {
   width: 100%;
-
-  align-self: flex-start;
-}
-
-.menu-overview-main {
-  flex-wrap: wrap;
 }
 
 .menu-overview-main strong {
   font-family: "Playfair Display", serif;
-  font-size: 2.6rem;
+  font-size: 2.7rem;
+  font-weight: 600;
   line-height: 1;
 }
 
 .menu-overview-main > span:last-child {
   color: var(--text-soft);
 
-  font-size: 0.76rem;
+  font-size: 0.75rem;
 }
 
 .menu-overview-stat {
@@ -67,26 +65,34 @@
 .menu-overview-stat span {
   color: var(--text-soft);
 
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
 .menu-overview-stat strong {
   font-family: "Playfair Display", serif;
   font-size: 1.8rem;
+  font-weight: 600;
 }
+
+/* ================================
+   MENU TOOLBAR
+================================ */
 
 .menu-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 18px;
 
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .menu-tabs {
   display: flex;
-  gap: 6px;
+  gap: 5px;
+
+  width: fit-content;
 
   padding: 4px;
 
@@ -101,12 +107,22 @@
   background: transparent;
   color: var(--text-soft);
 
+  border: none;
   border-radius: 9px;
 
   cursor: pointer;
 
-  font-size: 0.75rem;
+  font-size: 0.73rem;
   font-weight: 700;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.menu-tab:hover {
+  color: var(--text);
 }
 
 .menu-tab.active {
@@ -116,6 +132,10 @@
   box-shadow:
     0 2px 8px rgba(50, 40, 32, 0.08);
 }
+
+/* ================================
+   MENU CARDS
+================================ */
 
 .menu-card-grid {
   display: grid;
@@ -128,87 +148,116 @@
   display: flex;
   flex-direction: column;
 
-  min-height: 260px;
+  min-width: 0;
+  min-height: 290px;
 
   padding: 21px;
 
-  background: white;
+  background: var(--surface);
 
   border: 1px solid var(--border);
   border-radius: var(--radius-large);
 
   box-shadow: var(--shadow);
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.menu-item-card:hover {
+  transform: translateY(-2px);
+
+  border-color: #d7cbc3;
+
+  box-shadow:
+    0 17px 38px rgba(70, 55, 43, 0.09);
 }
 
 .menu-item-top {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 15px;
+  gap: 14px;
+}
+
+.menu-item-top > div {
+  min-width: 0;
 }
 
 .menu-type {
   color: var(--orange);
 
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
 }
 
 .menu-item-top h2 {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
+
+  overflow-wrap: anywhere;
 
   font-family: "Playfair Display", serif;
-  font-size: 1.3rem;
+  font-size: 1.32rem;
+  line-height: 1.2;
 }
+
+/* ================================
+   MENU STATUS
+================================ */
 
 .menu-status {
   flex-shrink: 0;
 
-  padding: 5px 8px;
+  padding: 5px 9px;
 
   border-radius: 999px;
 
-  font-size: 0.63rem;
+  font-size: 0.61rem;
   font-weight: 700;
 }
 
 .menu-status.good {
   background: var(--green-light);
-  color: #566953;
-}
-
-.menu-status.warning {
-  background: #f6e7cc;
-  color: #886122;
+  color: #536650;
 }
 
 .menu-status.manual {
   background: var(--purple-light);
-  color: #65516d;
+  color: #66526f;
 }
+
+.menu-status.warning {
+  background: #f6ead3;
+  color: #876025;
+}
+
+/* ================================
+   MENU QUANTITIES
+================================ */
 
 .menu-calculation {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
 
-  margin-top: 24px;
-}
-
-.menu-calculation.single {
-  grid-template-columns: 1fr;
+  margin-top: 22px;
 }
 
 .menu-calculation > div {
   display: flex;
   flex-direction: column;
 
+  min-width: 0;
+
   padding: 14px;
 
   background: var(--surface-soft);
 
+  border: 1px solid #eee7e1;
   border-radius: 12px;
 }
 
@@ -217,44 +266,118 @@
 
   color: var(--text-soft);
 
-  font-size: 0.65rem;
+  font-size: 0.63rem;
   font-weight: 600;
 }
 
 .menu-calculation strong {
   font-family: "Playfair Display", serif;
-  font-size: 1.8rem;
+  font-size: 1.75rem;
+  font-weight: 600;
   line-height: 1;
 }
 
 .menu-calculation small {
-  margin-top: 4px;
+  margin-top: 5px;
+
+  overflow: hidden;
 
   color: var(--text-soft);
 
   font-size: 0.62rem;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.menu-formula {
-  margin-top: 13px;
+/* ================================
+   INGREDIENT PREVIEW
+================================ */
+
+.menu-ingredient-preview {
+  margin-top: 18px;
+}
+
+.menu-ingredient-preview-header {
+  margin-bottom: 9px;
+
+  color: var(--orange);
+
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.menu-ingredient-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.menu-ingredient-preview-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 15px;
+
+  font-size: 0.7rem;
+}
+
+.menu-ingredient-preview-row span {
+  min-width: 0;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-ingredient-preview-row strong {
+  flex-shrink: 0;
 
   color: var(--text-soft);
 
-  font-size: 0.67rem;
+  font-size: 0.68rem;
+}
+
+.menu-ingredient-more {
+  margin-top: 2px;
+
+  color: var(--text-soft);
+
+  font-size: 0.64rem;
+}
+
+/* ================================
+   PURCHASE DETAILS
+================================ */
+
+.menu-formula {
+  margin-top: 14px;
+
+  color: var(--text-soft);
+
+  font-size: 0.68rem;
   line-height: 1.5;
 }
 
 .menu-notes {
-  margin: 13px 0 0;
+  margin: 14px 0 0;
 
   color: var(--text-soft);
 
-  font-size: 0.73rem;
-  line-height: 1.5;
+  font-size: 0.71rem;
+  line-height: 1.55;
 }
+
+/* ================================
+   CARD ACTIONS
+================================ */
 
 .menu-card-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 4px;
 
@@ -262,18 +385,21 @@
   padding-top: 20px;
 }
 
-.menu-card-actions button {
+.menu-card-actions button,
+.menu-card-actions a {
   padding: 6px 8px;
 
   background: transparent;
   color: var(--text-soft);
 
+  border: none;
   border-radius: 7px;
 
   cursor: pointer;
 
-  font-size: 0.69rem;
+  font-size: 0.68rem;
   font-weight: 700;
+  text-decoration: none;
 }
 
 .menu-card-actions button:hover {
@@ -281,32 +407,51 @@
   color: var(--text);
 }
 
+.menu-card-actions a {
+  color: var(--orange);
+}
+
+.menu-card-actions a:hover {
+  background: var(--orange-light);
+}
+
 .menu-card-actions .delete-action:hover {
   background: #f8e5e2;
   color: #a84b41;
 }
+
+/* ================================
+   EMPTY STATE
+================================ */
 
 .menu-empty-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
+
+  max-width: 420px;
 }
 
 .menu-empty-content strong {
   color: var(--text);
 
   font-family: "Playfair Display", serif;
-  font-size: 1.2rem;
+  font-size: 1.22rem;
 }
 
 .menu-empty-content span {
-  max-width: 380px;
-
   margin-bottom: 8px;
 
-  line-height: 1.5;
+  color: var(--text-soft);
+
+  font-size: 0.78rem;
+  line-height: 1.55;
 }
+
+/* ================================
+   FOOD / DRINK FORM
+================================ */
 
 .menu-form {
   display: grid;
@@ -319,9 +464,11 @@
   flex-direction: column;
   gap: 7px;
 
+  min-width: 0;
+
   color: var(--text);
 
-  font-size: 0.72rem;
+  font-size: 0.71rem;
   font-weight: 700;
 }
 
@@ -340,37 +487,232 @@
 
   outline: none;
 
+  font-family: inherit;
   font-size: 0.78rem;
   font-weight: 400;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .menu-form input:focus,
 .menu-form select:focus,
 .menu-form textarea:focus {
   border-color: var(--orange);
+
+  box-shadow:
+    0 0 0 3px rgba(189, 100, 45, 0.08);
 }
 
 .menu-form textarea {
-  min-height: 95px;
+  min-height: 100px;
 
   resize: vertical;
 }
 
-@media (max-width: 1150px) {
+.menu-form .full-field {
+  grid-column: 1 / -1;
+}
+
+/* ================================
+   RECIPE / PURCHASED TOGGLE
+================================ */
+
+.fulfillment-section {
+  grid-column: 1 / -1;
+
+  padding: 18px;
+
+  background: var(--surface-soft);
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.fulfillment-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  margin-top: 12px;
+}
+
+.fulfillment-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+
+  padding: 15px;
+
+  background: white;
+  color: var(--text);
+
+  border: 1px solid var(--border);
+  border-radius: 11px;
+
+  cursor: pointer;
+
+  text-align: left;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.fulfillment-option:hover {
+  transform: translateY(-1px);
+
+  border-color: #cfbfb4;
+}
+
+.fulfillment-option strong {
+  font-size: 0.78rem;
+}
+
+.fulfillment-option span {
+  color: var(--text-soft);
+
+  font-size: 0.66rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.fulfillment-option.recipe.active {
+  background: var(--orange-light);
+
+  border: 2px solid var(--orange);
+}
+
+.fulfillment-option.purchased.active {
+  background: var(--purple-light);
+
+  border: 2px solid var(--purple);
+}
+
+/* ================================
+   RECIPE EDITOR
+================================ */
+
+.recipe-editor {
+  grid-column: 1 / -1;
+
+  padding: 18px;
+
+  background: var(--surface-soft);
+
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.recipe-editor-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+
+  margin-bottom: 15px;
+}
+
+.recipe-editor-header h3 {
+  margin: 4px 0 0;
+
+  font-family: "Playfair Display", serif;
+  font-size: 1.05rem;
+}
+
+.ingredient-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ingredient-editor-row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 2fr)
+    minmax(90px, 0.75fr)
+    minmax(100px, 0.9fr)
+    36px;
+
+  gap: 8px;
+}
+
+.ingredient-editor-row input {
+  min-width: 0;
+}
+
+.ingredient-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  min-width: 36px;
+
+  padding: 0;
+
+  background: transparent;
+  color: var(--text-soft);
+
+  border: none;
+  border-radius: 8px;
+
+  cursor: pointer;
+
+  font-size: 1.1rem;
+}
+
+.ingredient-remove:hover {
+  background: #f8e5e2;
+  color: #a84b41;
+}
+
+.menu-error-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  margin-bottom: 18px;
+  padding: 14px 16px;
+
+  background: #f8e5e2;
+  color: #8f4038;
+
+  border: 1px solid #e7c4be;
+  border-radius: 12px;
+}
+
+.menu-error-banner strong {
+  font-size: 0.76rem;
+}
+
+.menu-error-banner span {
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+/* ================================
+   RESPONSIVE
+================================ */
+
+@media (max-width: 1200px) {
   .menu-card-grid {
     grid-template-columns:
       repeat(2, minmax(0, 1fr));
   }
 
   .menu-overview {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 700px) {
-  .menu-card-grid,
-  .menu-overview {
-    grid-template-columns: 1fr;
+@media (max-width: 800px) {
+  .menu-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .menu-form {
@@ -378,7 +720,52 @@
   }
 
   .menu-form label,
-  .menu-form .full-field {
+  .menu-form .full-field,
+  .fulfillment-section,
+  .recipe-editor {
     grid-column: 1;
+  }
+
+  .ingredient-editor-row {
+    grid-template-columns:
+      minmax(0, 1.7fr)
+      90px
+      100px
+      36px;
+  }
+}
+
+.food-drink-modal {
+  width: min(780px, 100%);
+}
+
+@media (max-width: 650px) {
+  .menu-card-grid,
+  .menu-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .fulfillment-options {
+    grid-template-columns: 1fr;
+  }
+
+  .ingredient-editor-row {
+    grid-template-columns:
+      1fr 80px 36px;
+  }
+
+  .ingredient-editor-row
+    input:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .recipe-editor-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .recipe-editor-header
+    .secondary-button {
+    align-self: flex-start;
   }
 }

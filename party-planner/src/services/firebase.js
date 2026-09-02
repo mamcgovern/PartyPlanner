@@ -2,12 +2,12 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID",
+  apiKey: "AIzaSyBmfFJbiTwyolCd2j6QqjsxVlI3k9yVPcM",
+  authDomain: "party-planner-4c775.firebaseapp.com",
+  projectId: "party-planner-4c775",
+  storageBucket: "party-planner-4c775.firebasestorage.app",
+  messagingSenderId: "624015006333",
+  appId: "1:624015006333:web:6fb56c6a1525d624cb6f14",
 };
 
 const app = initializeApp(firebaseConfig);

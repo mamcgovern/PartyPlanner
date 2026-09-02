@@ -28,10 +28,7 @@ function Sidebar() {
           end
           className={getNavClass}
         >
-          <span className="nav-icon">
-            ⌂
-          </span>
-
+          <span className="nav-icon">⌂</span>
           Dashboard
         </NavLink>
 
@@ -44,10 +41,7 @@ function Sidebar() {
             to="/guests"
             className={getNavClass}
           >
-            <span className="nav-icon">
-              ♟
-            </span>
-
+            <span className="nav-icon">♟</span>
             Guests
           </NavLink>
         </div>
@@ -61,10 +55,7 @@ function Sidebar() {
             to="/tasks"
             className={getNavClass}
           >
-            <span className="nav-icon">
-              ✓
-            </span>
-
+            <span className="nav-icon">✓</span>
             Tasks
           </NavLink>
 
@@ -72,38 +63,29 @@ function Sidebar() {
             to="/food-drinks"
             className={getNavClass}
           >
-            <span className="nav-icon">
-              ♨
-            </span>
-
+            <span className="nav-icon">♨</span>
             Food & Drinks
-          </NavLink>
-
-          <NavLink
-            to="/recipes"
-            className={getNavClass}
-          >
-            <span className="nav-icon">
-              ▤
-            </span>
-
-            Recipes & Groceries
           </NavLink>
         </div>
 
         <div className="sidebar-section">
           <span className="sidebar-section-title">
-            Party Design
+            Purchasing
           </span>
+
+          <NavLink
+            to="/shopping"
+            className={getNavClass}
+          >
+            <span className="nav-icon">▣</span>
+            Shopping
+          </NavLink>
 
           <NavLink
             to="/decorations"
             className={getNavClass}
           >
-            <span className="nav-icon">
-              ✦
-            </span>
-
+            <span className="nav-icon">✦</span>
             Decorations
           </NavLink>
         </div>
@@ -117,10 +99,7 @@ function Sidebar() {
             to="/notes"
             className={getNavClass}
           >
-            <span className="nav-icon">
-              ≡
-            </span>
-
+            <span className="nav-icon">≡</span>
             Notes
           </NavLink>
         </div>
@@ -130,7 +109,7 @@ function Sidebar() {
         <strong>Party Planning</strong>
 
         <span>
-          Food, guests, decor & more
+          Guests, food, drinks & decor
         </span>
       </div>
     </aside>
