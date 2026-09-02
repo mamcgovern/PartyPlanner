@@ -10,8 +10,7 @@ import {
   collection,
   doc,
   onSnapshot,
-  orderBy,
-  query,
+  serverTimestamp,
   setDoc,
 } from "firebase/firestore";
 
@@ -19,9 +18,24 @@ import { db } from "../services/firebase";
 
 const PARTY_ID = "halloween-25";
 
+const getDetailDocumentId = (
+  shoppingItemId,
+) => {
+  return encodeURIComponent(
+    shoppingItemId,
+  );
+};
+
 function Shopping() {
-  const [menuItems, setMenuItems] =
-    useState([]);
+  const [
+    menuItems,
+    setMenuItems,
+  ] = useState([]);
+
+  const [
+    shoppingDetails,
+    setShoppingDetails,
+  ] = useState({});
 
   const [
     checkedShoppingItems,
@@ -48,42 +62,88 @@ function Shopping() {
       "menuItems",
     );
 
-    const menuQuery = query(
+    const unsubscribe = onSnapshot(
       menuRef,
-      orderBy("createdAt", "asc"),
+      (snapshot) => {
+        const data =
+          snapshot.docs.map(
+            (itemDoc) => ({
+              id: itemDoc.id,
+              ...itemDoc.data(),
+            }),
+          );
+
+        setMenuItems(data);
+        setLoading(false);
+      },
+      (error) => {
+        console.error(
+          "Error loading shopping list:",
+          error,
+        );
+
+        setLoading(false);
+      },
     );
-
-    const unsubscribe =
-      onSnapshot(
-        menuQuery,
-        (snapshot) => {
-          setMenuItems(
-            snapshot.docs.map(
-              (itemDoc) => ({
-                id: itemDoc.id,
-                ...itemDoc.data(),
-              }),
-            ),
-          );
-
-          setLoading(false);
-        },
-        (error) => {
-          console.error(
-            "Error loading shopping items:",
-            error,
-          );
-
-          setLoading(false);
-        },
-      );
 
     return unsubscribe;
   }, []);
 
   /*
    * ================================
-   * LOAD CHECKBOX STATE
+   * LOAD SHOPPING DETAILS
+   * ================================
+   */
+
+  useEffect(() => {
+    const detailsRef = collection(
+      db,
+      "parties",
+      PARTY_ID,
+      "shoppingDetails",
+    );
+
+    const unsubscribe = onSnapshot(
+      detailsRef,
+      (snapshot) => {
+        const details = {};
+
+        snapshot.docs.forEach(
+          (detailDoc) => {
+            const data =
+              detailDoc.data();
+
+            if (!data.shoppingItemId) {
+              return;
+            }
+
+            details[
+              data.shoppingItemId
+            ] = {
+              id: detailDoc.id,
+              ...data,
+            };
+          },
+        );
+
+        setShoppingDetails(
+          details,
+        );
+      },
+      (error) => {
+        console.error(
+          "Error loading shopping details:",
+          error,
+        );
+      },
+    );
+
+    return unsubscribe;
+  }, []);
+
+  /*
+   * ================================
+   * LOAD CHECKED STATE
    * ================================
    */
 
@@ -94,21 +154,26 @@ function Shopping() {
       PARTY_ID,
     );
 
-    const unsubscribe =
-      onSnapshot(
-        partyRef,
-        (snapshot) => {
-          if (!snapshot.exists()) {
-            return;
-          }
+    const unsubscribe = onSnapshot(
+      partyRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          return;
+        }
 
-          setCheckedShoppingItems(
-            snapshot.data()
-              .checkedShoppingItems ??
-              [],
-          );
-        },
-      );
+        setCheckedShoppingItems(
+          snapshot.data()
+            .checkedShoppingItems ??
+            [],
+        );
+      },
+      (error) => {
+        console.error(
+          "Error loading shopping status:",
+          error,
+        );
+      },
+    );
 
     return unsubscribe;
   }, []);
@@ -130,11 +195,14 @@ function Shopping() {
         .map((item) => ({
           id: `purchase__${item.id}`,
 
-          sourceId: item.id,
+          sourceId:
+            item.id,
 
-          type: "Purchased",
+          type:
+            "Purchased",
 
-          name: item.name,
+          name:
+            item.name,
 
           amount:
             item.purchaseQuantity ??
@@ -143,18 +211,18 @@ function Shopping() {
           unit:
             item.purchaseUnit ?? "",
 
-          store:
+          source:
+            item.name,
+
+          originalStore:
             item.store ?? "",
 
-          estimatedPrice:
+          originalEstimatedPrice:
             item.estimatedPrice ??
             null,
 
           shoppingLink:
             item.shoppingLink ?? "",
-
-          source:
-            item.name,
         }));
     }, [menuItems]);
 
@@ -214,7 +282,9 @@ function Shopping() {
                 );
 
               const scaledAmount =
-                Number.isFinite(amount)
+                Number.isFinite(
+                  amount,
+                )
                   ? amount * scale
                   : null;
 
@@ -266,6 +336,9 @@ function Shopping() {
                     sources: [
                       item.name,
                     ],
+
+                    shoppingLink:
+                      "",
                   },
                 );
               }
@@ -284,47 +357,100 @@ function Shopping() {
 
   /*
    * ================================
-   * TOTAL LIST
+   * APPLY SHOPPING DETAILS
+   * ================================
+   */
+
+  const applyDetails = (
+    item,
+  ) => {
+    const detail =
+      shoppingDetails[item.id] ??
+      {};
+
+    return {
+      ...item,
+
+      store:
+        detail.store ??
+        item.originalStore ??
+        "",
+
+      estimatedPrice:
+        detail.estimatedPrice ??
+        item.originalEstimatedPrice ??
+        null,
+    };
+  };
+
+  const purchasedItemsWithDetails =
+    useMemo(
+      () =>
+        purchasedItems.map(
+          applyDetails,
+        ),
+      [
+        purchasedItems,
+        shoppingDetails,
+      ],
+    );
+
+  const recipeIngredientsWithDetails =
+    useMemo(
+      () =>
+        recipeIngredients.map(
+          applyDetails,
+        ),
+      [
+        recipeIngredients,
+        shoppingDetails,
+      ],
+    );
+
+  /*
+   * ================================
+   * MASTER LIST
    * ================================
    */
 
   const allItems =
-    useMemo(() => {
-      return [
-        ...purchasedItems,
-        ...recipeIngredients,
-      ];
-    }, [
-      purchasedItems,
-      recipeIngredients,
-    ]);
+    useMemo(
+      () => [
+        ...purchasedItemsWithDetails,
+        ...recipeIngredientsWithDetails,
+      ],
+      [
+        purchasedItemsWithDetails,
+        recipeIngredientsWithDetails,
+      ],
+    );
 
   const visibleItems =
     useMemo(() => {
       if (
         activeTab === "Purchased"
       ) {
-        return purchasedItems;
+        return purchasedItemsWithDetails;
       }
 
       if (
         activeTab ===
         "Ingredients"
       ) {
-        return recipeIngredients;
+        return recipeIngredientsWithDetails;
       }
 
       return allItems;
     }, [
       activeTab,
       allItems,
-      purchasedItems,
-      recipeIngredients,
+      purchasedItemsWithDetails,
+      recipeIngredientsWithDetails,
     ]);
 
   /*
    * ================================
-   * SUMMARY
+   * TOTALS
    * ================================
    */
 
@@ -348,8 +474,8 @@ function Shopping() {
             100,
         );
 
-  const estimatedPurchasedTotal =
-    purchasedItems.reduce(
+  const estimatedTotal =
+    allItems.reduce(
       (total, item) =>
         total +
         Number(
@@ -360,7 +486,7 @@ function Shopping() {
 
   /*
    * ================================
-   * CHECKBOXES
+   * CHECKBOX
    * ================================
    */
 
@@ -381,8 +507,12 @@ function Shopping() {
           {
             checkedShoppingItems:
               checked
-                ? arrayRemove(itemId)
-                : arrayUnion(itemId),
+                ? arrayRemove(
+                    itemId,
+                  )
+                : arrayUnion(
+                    itemId,
+                  ),
           },
           {
             merge: true,
@@ -423,6 +553,73 @@ function Shopping() {
 
   /*
    * ================================
+   * EDIT SHOPPING DETAILS
+   * ================================
+   */
+
+  const updateShoppingDetail =
+    async (
+      item,
+      field,
+      value,
+    ) => {
+      const existing =
+        shoppingDetails[
+          item.id
+        ];
+
+      const detailId =
+        existing?.id ??
+        getDetailDocumentId(
+          item.id,
+        );
+
+      let parsedValue =
+        value;
+
+      if (
+        field ===
+        "estimatedPrice"
+      ) {
+        parsedValue =
+          value === ""
+            ? null
+            : Number(value);
+      }
+
+      try {
+        await setDoc(
+          doc(
+            db,
+            "parties",
+            PARTY_ID,
+            "shoppingDetails",
+            detailId,
+          ),
+          {
+            shoppingItemId:
+              item.id,
+
+            [field]:
+              parsedValue,
+
+            updatedAt:
+              serverTimestamp(),
+          },
+          {
+            merge: true,
+          },
+        );
+      } catch (error) {
+        console.error(
+          "Error updating shopping details:",
+          error,
+        );
+      }
+    };
+
+  /*
+   * ================================
    * FORMATTING
    * ================================
    */
@@ -437,9 +634,18 @@ function Shopping() {
       return "";
     }
 
+    const number =
+      Number(value);
+
+    if (
+      !Number.isFinite(number)
+    ) {
+      return value;
+    }
+
     return (
       Math.round(
-        Number(value) * 100,
+        number * 100,
       ) / 100
     );
   };
@@ -453,8 +659,16 @@ function Shopping() {
         style: "currency",
         currency: "USD",
       },
-    ).format(Number(value || 0));
+    ).format(
+      Number(value || 0),
+    );
   };
+
+  /*
+   * ================================
+   * RENDER
+   * ================================
+   */
 
   return (
     <div className="page">
@@ -464,16 +678,20 @@ function Shopping() {
             Purchasing
           </span>
 
-          <h1>Shopping List</h1>
+          <h1>
+            Shopping List
+          </h1>
 
           <p>
-            Automatically generated from
-            the food and drinks you&apos;re
-            making or purchasing for the
-            party.
+            Automatically generated
+            from your menu. Add the
+            store and estimated cost as
+            you plan your shopping.
           </p>
         </div>
       </header>
+
+      {/* SUMMARY */}
 
       <section className="shopping-stats-grid">
         <div className="shopping-stat-card featured">
@@ -501,7 +719,9 @@ function Shopping() {
         </div>
 
         <div className="shopping-stat-card">
-          <span>Remaining</span>
+          <span>
+            Remaining
+          </span>
 
           <strong>
             {remainingCount}
@@ -530,20 +750,22 @@ function Shopping() {
 
         <div className="shopping-stat-card">
           <span>
-            Purchased Food
+            Estimated Total
           </span>
 
           <strong>
             {formatCurrency(
-              estimatedPurchasedTotal,
+              estimatedTotal,
             )}
           </strong>
 
           <small>
-            estimated cost
+            shopping estimate
           </small>
         </div>
       </section>
+
+      {/* TABS */}
 
       <section className="shopping-toolbar">
         <div className="menu-tabs">
@@ -561,7 +783,9 @@ function Shopping() {
                   : "menu-tab"
               }
               onClick={() =>
-                setActiveTab(tab)
+                setActiveTab(
+                  tab,
+                )
               }
             >
               {tab}
@@ -573,18 +797,23 @@ function Shopping() {
           <button
             type="button"
             className="text-button"
-            onClick={clearChecks}
+            onClick={
+              clearChecks
+            }
           >
             Reset Checklist
           </button>
         )}
       </section>
 
+      {/* LIST */}
+
       {loading ? (
         <div className="empty-page-card">
           Building shopping list...
         </div>
-      ) : allItems.length === 0 ? (
+      ) : allItems.length ===
+        0 ? (
         <div className="empty-page-card">
           <div className="menu-empty-content">
             <strong>
@@ -592,9 +821,8 @@ function Shopping() {
             </strong>
 
             <span>
-              Add food and drinks first.
-              Purchased items and recipe
-              ingredients will
+              Purchased menu items and
+              recipe ingredients will
               automatically appear here.
             </span>
           </div>
@@ -605,9 +833,9 @@ function Shopping() {
             <div />
             <div>Item</div>
             <div>Quantity</div>
-            <div>Source</div>
+            <div>For</div>
             <div>Store</div>
-            <div>Estimate</div>
+            <div>Cost</div>
             <div />
           </div>
 
@@ -627,6 +855,8 @@ function Shopping() {
                   }
                   key={item.id}
                 >
+                  {/* CHECK */}
+
                   <div className="shopping-check-cell">
                     <button
                       type="button"
@@ -647,6 +877,8 @@ function Shopping() {
                     </button>
                   </div>
 
+                  {/* ITEM */}
+
                   <div className="shopping-item-name">
                     <div className="shopping-item-title-row">
                       <strong>
@@ -654,13 +886,12 @@ function Shopping() {
                       </strong>
 
                       <span className="shopping-category-pill">
-                        {item.type ===
-                        "Ingredient"
-                          ? "Ingredient"
-                          : "Purchased"}
+                        {item.type}
                       </span>
                     </div>
                   </div>
+
+                  {/* QUANTITY */}
 
                   <div className="shopping-secondary">
                     {formatAmount(
@@ -668,6 +899,8 @@ function Shopping() {
                     )}{" "}
                     {item.unit}
                   </div>
+
+                  {/* SOURCE */}
 
                   <div className="shopping-secondary">
                     {item.type ===
@@ -678,20 +911,61 @@ function Shopping() {
                       : item.source}
                   </div>
 
-                  <div className="shopping-secondary">
-                    {item.store || "—"}
+                  {/* STORE */}
+
+                  <div>
+                    <input
+                      className="shopping-inline-input"
+                      type="text"
+                      value={
+                        item.store ?? ""
+                      }
+                      placeholder="Store"
+                      onChange={(
+                        event,
+                      ) =>
+                        updateShoppingDetail(
+                          item,
+                          "store",
+                          event.target
+                            .value,
+                        )
+                      }
+                    />
                   </div>
 
-                  <div className="shopping-price">
-                    {item.type ===
-                      "Purchased" &&
-                    item.estimatedPrice !==
-                      null
-                      ? formatCurrency(
-                          item.estimatedPrice,
-                        )
-                      : "—"}
+                  {/* COST */}
+
+                  <div>
+                    <div className="shopping-cost-input">
+                      <span>
+                        $
+                      </span>
+
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={
+                          item.estimatedPrice ??
+                          ""
+                        }
+                        placeholder="0.00"
+                        onChange={(
+                          event,
+                        ) =>
+                          updateShoppingDetail(
+                            item,
+                            "estimatedPrice",
+                            event.target
+                              .value,
+                          )
+                        }
+                      />
+                    </div>
                   </div>
+
+                  {/* LINK */}
 
                   <div className="shopping-row-actions">
                     {item.shoppingLink && (

@@ -506,3 +506,110 @@
     gap: 5px;
   }
 }
+/* ================================
+   EDITABLE SHOPPING FIELDS
+================================ */
+
+.shopping-inline-input {
+  width: 100%;
+  min-width: 0;
+
+  padding: 7px 8px;
+
+  background: transparent;
+  color: var(--text);
+
+  border: 1px solid transparent;
+  border-radius: 7px;
+
+  outline: none;
+
+  font-family: inherit;
+  font-size: 0.7rem;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.shopping-inline-input:hover {
+  background: var(--surface-soft);
+
+  border-color: var(--border);
+}
+
+.shopping-inline-input:focus {
+  background: white;
+
+  border-color: var(--orange);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(189, 100, 45, 0.08);
+}
+
+.shopping-cost-input {
+  display: flex;
+  align-items: center;
+
+  min-width: 0;
+
+  padding-left: 7px;
+
+  background: transparent;
+
+  border: 1px solid transparent;
+  border-radius: 7px;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.shopping-cost-input:hover {
+  background: var(--surface-soft);
+
+  border-color: var(--border);
+}
+
+.shopping-cost-input:focus-within {
+  background: white;
+
+  border-color: var(--orange);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(189, 100, 45, 0.08);
+}
+
+.shopping-cost-input span {
+  flex-shrink: 0;
+
+  color: var(--text-soft);
+
+  font-size: 0.7rem;
+}
+
+.shopping-cost-input input {
+  width: 100%;
+  min-width: 0;
+
+  padding: 7px 7px 7px 3px;
+
+  background: transparent;
+  color: var(--text);
+
+  border: none;
+
+  outline: none;
+
+  font-family: inherit;
+  font-size: 0.7rem;
+}
+
+.shopping-cost-input
+  input::-webkit-inner-spin-button,
+.shopping-cost-input
+  input::-webkit-outer-spin-button {
+  margin: 0;
+}
