@@ -1,26 +1,3 @@
-const stats = [
-  {
-    label: "Invited",
-    value: 20,
-    detail: "total guests",
-  },
-  {
-    label: "Attending",
-    value: 6,
-    detail: "confirmed",
-  },
-  {
-    label: "Maybe",
-    value: 2,
-    detail: "undecided",
-  },
-  {
-    label: "No Response",
-    value: 12,
-    detail: "waiting",
-  },
-];
-
 const tasks = [
   {
     id: 1,
@@ -44,48 +21,23 @@ const tasks = [
   },
 ];
 
-const food = [
-  {
-    name: "Pizza",
-    quantity: "4 pizzas",
-    status: "Enough for 10 guests",
-  },
-  {
-    name: "Buffalo Chicken Dip",
-    quantity: "1 batch",
-    status: "Serves 12",
-  },
-  {
-    name: "Cupcakes",
-    quantity: "18",
-    status: "Planned",
-  },
-];
-
-const drinks = [
-  {
-    name: "Dirty Shirleys",
-    quantity: "16",
-  },
-  {
-    name: "Apple Cider Punch",
-    quantity: "16",
-  },
-  {
-    name: "Beer",
-    quantity: "24 cans",
-  },
-];
-
 function Dashboard() {
   return (
     <div className="page">
       <header className="page-header">
         <div>
-          <span className="page-eyebrow">Saturday, October 31</span>
-          <h1>Mattie&apos;s 25th Halloween Birthday</h1>
+          <span className="page-eyebrow">
+            Saturday, October 31
+          </span>
+
+          <h1>
+            Mattie&apos;s 25th Halloween
+            Birthday
+          </h1>
+
           <p>
-            Everything you need to plan the party, all in one place.
+            Everything you need to plan
+            the party, all in one place.
           </p>
         </div>
 
@@ -95,19 +47,53 @@ function Dashboard() {
       </header>
 
       <section className="stats-grid">
-        {stats.map((stat) => (
-          <div className="stat-card" key={stat.label}>
-            <span className="stat-label">
-              {stat.label}
-            </span>
+        <div className="stat-card">
+          <span className="stat-label">
+            Invited
+          </span>
 
-            <strong>{stat.value}</strong>
+          <strong>20</strong>
 
-            <span className="stat-detail">
-              {stat.detail}
-            </span>
-          </div>
-        ))}
+          <span className="stat-detail">
+            total guests
+          </span>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-label">
+            Attending
+          </span>
+
+          <strong>6</strong>
+
+          <span className="stat-detail">
+            confirmed
+          </span>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-label">
+            Maybe
+          </span>
+
+          <strong>2</strong>
+
+          <span className="stat-detail">
+            undecided
+          </span>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-label">
+            Expected
+          </span>
+
+          <strong>10</strong>
+
+          <span className="stat-detail">
+            planning for
+          </span>
+        </div>
       </section>
 
       <section className="dashboard-grid">
@@ -117,12 +103,13 @@ function Dashboard() {
               <span className="card-eyebrow">
                 Countdown
               </span>
+
               <h2>Party Time</h2>
             </div>
           </div>
 
           <div className="countdown-number">
-            61
+            59
           </div>
 
           <span className="countdown-label">
@@ -136,12 +123,9 @@ function Dashboard() {
               <span className="card-eyebrow">
                 Attendance
               </span>
+
               <h2>Guest Planning</h2>
             </div>
-
-            <button className="text-button">
-              Edit
-            </button>
           </div>
 
           <div className="attendance-number">
@@ -155,13 +139,20 @@ function Dashboard() {
           <div className="attendance-bar">
             <div
               className="attendance-bar-fill"
-              style={{ width: "50%" }}
+              style={{
+                width: "50%",
+              }}
             />
           </div>
 
           <div className="attendance-summary">
-            <span>6 confirmed</span>
-            <span>20 invited</span>
+            <span>
+              6 confirmed
+            </span>
+
+            <span>
+              20 invited
+            </span>
           </div>
         </div>
 
@@ -171,12 +162,9 @@ function Dashboard() {
               <span className="card-eyebrow">
                 Coming Up
               </span>
+
               <h2>Next Tasks</h2>
             </div>
-
-            <button className="text-button">
-              View all
-            </button>
           </div>
 
           <div className="task-preview-list">
@@ -191,8 +179,13 @@ function Dashboard() {
                 />
 
                 <div>
-                  <strong>{task.title}</strong>
-                  <span>Due {task.due}</span>
+                  <strong>
+                    {task.title}
+                  </strong>
+
+                  <span>
+                    Due {task.due}
+                  </span>
                 </div>
               </div>
             ))}
@@ -205,30 +198,45 @@ function Dashboard() {
               <span className="card-eyebrow">
                 Menu
               </span>
-              <h2>Food</h2>
-            </div>
 
-            <button className="text-button">
-              Plan
-            </button>
+              <h2>
+                Party Recipes
+              </h2>
+            </div>
           </div>
 
           <div className="mini-list">
-            {food.map((item) => (
-              <div
-                className="mini-list-item"
-                key={item.name}
-              >
-                <div>
-                  <strong>{item.name}</strong>
-                  <span>{item.status}</span>
-                </div>
-
-                <strong className="mini-value">
-                  {item.quantity}
+            <div className="mini-list-item">
+              <div>
+                <strong>
+                  Buffalo Chicken Dip
                 </strong>
+
+                <span>
+                  Appetizer
+                </span>
               </div>
-            ))}
+
+              <strong className="mini-value">
+                12 servings
+              </strong>
+            </div>
+
+            <div className="mini-list-item">
+              <div>
+                <strong>
+                  Dirty Shirley
+                </strong>
+
+                <span>
+                  Cocktail
+                </span>
+              </div>
+
+              <strong className="mini-value">
+                16 drinks
+              </strong>
+            </div>
           </div>
         </div>
 
@@ -236,29 +244,40 @@ function Dashboard() {
           <div className="card-header">
             <div>
               <span className="card-eyebrow">
-                Bar
+                Groceries
               </span>
-              <h2>Drinks</h2>
-            </div>
 
-            <button className="text-button">
-              Plan
-            </button>
+              <h2>
+                Ingredient List
+              </h2>
+            </div>
           </div>
 
-          <div className="mini-list">
-            {drinks.map((item) => (
-              <div
-                className="mini-list-item"
-                key={item.name}
-              >
-                <strong>{item.name}</strong>
+          <div className="attendance-number">
+            8
+          </div>
 
-                <strong className="mini-value">
-                  {item.quantity}
-                </strong>
-              </div>
-            ))}
+          <p className="muted">
+            ingredients remaining
+          </p>
+
+          <div className="attendance-bar">
+            <div
+              className="shopping-progress-fill"
+              style={{
+                width: "40%",
+              }}
+            />
+          </div>
+
+          <div className="attendance-summary">
+            <span>
+              6 gathered
+            </span>
+
+            <span>
+              14 total
+            </span>
           </div>
         </div>
 
@@ -266,43 +285,37 @@ function Dashboard() {
           <div className="card-header">
             <div>
               <span className="card-eyebrow">
-                Shopping
+                Decorations
               </span>
-              <h2>Purchase Progress</h2>
-            </div>
 
-            <button className="text-button">
-              View list
-            </button>
+              <h2>
+                Party Setup
+              </h2>
+            </div>
           </div>
 
           <div className="shopping-summary">
             <div>
-              <strong>18</strong>
-              <span>purchased</span>
+              <strong>6</strong>
+              <span>
+                ideas saved
+              </span>
             </div>
 
             <div>
-              <strong>13</strong>
-              <span>remaining</span>
+              <strong>2</strong>
+              <span>
+                purchased
+              </span>
             </div>
 
             <div>
-              <strong>$184</strong>
-              <span>spent</span>
+              <strong>4</strong>
+              <span>
+                remaining
+              </span>
             </div>
           </div>
-
-          <div className="shopping-progress">
-            <div
-              className="shopping-progress-fill"
-              style={{ width: "58%" }}
-            />
-          </div>
-
-          <p className="muted">
-            18 of 31 items purchased
-          </p>
         </div>
       </section>
     </div>
