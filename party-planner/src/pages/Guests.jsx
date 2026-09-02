@@ -1,875 +1,1286 @@
-import { useEffect, useMemo, useState } from "react";
 import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
+
+import {
+    addDoc,
+    collection,
+    deleteDoc,
+    doc,
+    onSnapshot,
+    serverTimestamp,
+    setDoc,
+    updateDoc,
 } from "firebase/firestore";
+
 import { db } from "../services/firebase";
 
 const PARTY_ID = "halloween-25";
 
 const rsvpOptions = [
-  "No Response",
-  "Attending",
-  "Maybe",
-  "Declined",
+    "No Response",
+    "Attending",
+    "Maybe",
+    "Declined",
 ];
 
-function Guests() {
-  const [guests, setGuests] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("All");
-
-  const [expectedAttendance, setExpectedAttendance] =
-    useState(10);
-
-  const [showForm, setShowForm] = useState(false);
-  const [editingGuestId, setEditingGuestId] =
-    useState(null);
-
-  const [formData, setFormData] = useState({
+const getDefaultFormData = () => ({
     name: "",
     rsvp: "No Response",
+
     plusOne: "",
     plusOneRsvp: "No Response",
+
     foodNotes: "",
     notes: "",
-  });
+});
 
-  useEffect(() => {
-    const partyRef = doc(db, "parties", PARTY_ID);
+function Guests() {
+    const [guests, setGuests] =
+        useState([]);
 
-    const unsubscribeParty = onSnapshot(
-      partyRef,
-      async (snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
+    const [
+        expectedAttendance,
+        setExpectedAttendance,
+    ] = useState(10);
 
-          setExpectedAttendance(
-            data.expectedAttendance ?? 10,
-          );
-        } else {
-          await setDoc(partyRef, {
-            name: "Mattie's 25th Halloween Birthday",
-            date: "2026-10-31",
-            expectedAttendance: 10,
-            createdAt: serverTimestamp(),
-          });
-        }
-      },
-    );
+    const [loading, setLoading] =
+        useState(true);
 
-    return unsubscribeParty;
-  }, []);
+    const [saving, setSaving] =
+        useState(false);
 
-  useEffect(() => {
-    const guestsRef = collection(
-      db,
-      "parties",
-      PARTY_ID,
-      "guests",
-    );
+    const [search, setSearch] =
+        useState("");
 
-    const guestsQuery = query(
-      guestsRef,
-      orderBy("createdAt", "asc"),
-    );
+    const [activeFilter, setActiveFilter] =
+        useState("All");
 
-    const unsubscribeGuests = onSnapshot(
-      guestsQuery,
-      (snapshot) => {
-        const guestData = snapshot.docs.map(
-          (guestDoc) => ({
-            id: guestDoc.id,
-            ...guestDoc.data(),
-          }),
+    const [showForm, setShowForm] =
+        useState(false);
+
+    const [
+        editingGuestId,
+        setEditingGuestId,
+    ] = useState(null);
+
+    const [formData, setFormData] =
+        useState(
+            getDefaultFormData(),
         );
 
-        setGuests(guestData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error(
-          "Error loading guests:",
-          error,
+    /*
+     * ================================
+     * LOAD PARTY SETTINGS
+     * ================================
+     */
+
+    useEffect(() => {
+        const partyRef = doc(
+            db,
+            "parties",
+            PARTY_ID,
         );
 
-        setLoading(false);
-      },
-    );
+        const unsubscribe = onSnapshot(
+            partyRef,
+            (snapshot) => {
+                if (!snapshot.exists()) {
+                    return;
+                }
 
-    return unsubscribeGuests;
-  }, []);
-
-  const counts = useMemo(() => {
-    let invited = 0;
-    let attending = 0;
-    let maybe = 0;
-    let declined = 0;
-    let noResponse = 0;
-
-    guests.forEach((guest) => {
-      invited += 1;
-
-      if (guest.rsvp === "Attending") {
-        attending += 1;
-      }
-
-      if (guest.rsvp === "Maybe") {
-        maybe += 1;
-      }
-
-      if (guest.rsvp === "Declined") {
-        declined += 1;
-      }
-
-      if (
-        !guest.rsvp ||
-        guest.rsvp === "No Response"
-      ) {
-        noResponse += 1;
-      }
-
-      if (guest.plusOne?.trim()) {
-        invited += 1;
-
-        const plusOneRsvp =
-          guest.plusOneRsvp ?? "No Response";
-
-        if (plusOneRsvp === "Attending") {
-          attending += 1;
-        }
-
-        if (plusOneRsvp === "Maybe") {
-          maybe += 1;
-        }
-
-        if (plusOneRsvp === "Declined") {
-          declined += 1;
-        }
-
-        if (plusOneRsvp === "No Response") {
-          noResponse += 1;
-        }
-      }
-    });
-
-    return {
-      invited,
-      attending,
-      maybe,
-      declined,
-      noResponse,
-    };
-  }, [guests]);
-
-  const filteredGuests = useMemo(() => {
-    const normalizedSearch = search
-      .trim()
-      .toLowerCase();
-
-    return guests.filter((guest) => {
-      const name = guest.name ?? "";
-      const plusOne = guest.plusOne ?? "";
-
-      const matchesSearch =
-        name
-          .toLowerCase()
-          .includes(normalizedSearch) ||
-        plusOne
-          .toLowerCase()
-          .includes(normalizedSearch);
-
-      const matchesFilter =
-        filter === "All" ||
-        guest.rsvp === filter ||
-        (
-          guest.plusOne?.trim() &&
-          (guest.plusOneRsvp ??
-            "No Response") === filter
+                setExpectedAttendance(
+                    snapshot.data()
+                        .expectedAttendance ?? 10,
+                );
+            },
+            (error) => {
+                console.error(
+                    "Error loading party:",
+                    error,
+                );
+            },
         );
 
-      return matchesSearch && matchesFilter;
-    });
-  }, [guests, search, filter]);
+        return unsubscribe;
+    }, []);
 
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      rsvp: "No Response",
-      plusOne: "",
-      plusOneRsvp: "No Response",
-      foodNotes: "",
-      notes: "",
-    });
+    /*
+     * ================================
+     * LOAD GUESTS
+     * ================================
+     */
 
-    setEditingGuestId(null);
-    setShowForm(false);
-  };
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setFormData((current) => ({
-      ...current,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    const trimmedName = formData.name.trim();
-    const trimmedPlusOne =
-      formData.plusOne.trim();
-
-    if (!trimmedName) {
-      return;
-    }
-
-    const guestData = {
-      ...formData,
-      name: trimmedName,
-      plusOne: trimmedPlusOne,
-      plusOneRsvp: trimmedPlusOne
-        ? formData.plusOneRsvp
-        : "No Response",
-      updatedAt: serverTimestamp(),
-    };
-
-    try {
-      if (editingGuestId) {
-        const guestRef = doc(
-          db,
-          "parties",
-          PARTY_ID,
-          "guests",
-          editingGuestId,
-        );
-
-        await updateDoc(
-          guestRef,
-          guestData,
-        );
-      } else {
+    useEffect(() => {
         const guestsRef = collection(
-          db,
-          "parties",
-          PARTY_ID,
-          "guests",
+            db,
+            "parties",
+            PARTY_ID,
+            "guests",
         );
 
-        await addDoc(guestsRef, {
-          ...guestData,
-          createdAt: serverTimestamp(),
+        const unsubscribe = onSnapshot(
+            guestsRef,
+            (snapshot) => {
+                const guestData =
+                    snapshot.docs.map(
+                        (guestDoc) => ({
+                            id: guestDoc.id,
+                            ...guestDoc.data(),
+                        }),
+                    );
+
+                guestData.sort((a, b) => {
+                    const aTime =
+                        a.createdAt?.toMillis?.() ??
+                        0;
+
+                    const bTime =
+                        b.createdAt?.toMillis?.() ??
+                        0;
+
+                    return aTime - bTime;
+                });
+
+                setGuests(guestData);
+
+                setLoading(false);
+            },
+            (error) => {
+                console.error(
+                    "Error loading guests:",
+                    error,
+                );
+
+                setLoading(false);
+            },
+        );
+
+        return unsubscribe;
+    }, []);
+
+    /*
+     * ================================
+     * TOTALS
+     * ================================
+     */
+
+    const invitedCount =
+        useMemo(() => {
+            return guests.reduce(
+                (total, guest) => {
+                    const hasPlusOne =
+                        Boolean(
+                            guest.plusOne?.trim(),
+                        );
+
+                    return (
+                        total +
+                        1 +
+                        (hasPlusOne ? 1 : 0)
+                    );
+                },
+                0,
+            );
+        }, [guests]);
+
+    const attendingCount =
+        useMemo(() => {
+            return guests.reduce(
+                (total, guest) => {
+                    let count = 0;
+
+                    if (
+                        guest.rsvp ===
+                        "Attending"
+                    ) {
+                        count += 1;
+                    }
+
+                    if (
+                        guest.plusOne?.trim() &&
+                        guest.plusOneRsvp ===
+                        "Attending"
+                    ) {
+                        count += 1;
+                    }
+
+                    return total + count;
+                },
+                0,
+            );
+        }, [guests]);
+
+    const maybeCount =
+        useMemo(() => {
+            return guests.reduce(
+                (total, guest) => {
+                    let count = 0;
+
+                    if (
+                        guest.rsvp === "Maybe"
+                    ) {
+                        count += 1;
+                    }
+
+                    if (
+                        guest.plusOne?.trim() &&
+                        guest.plusOneRsvp ===
+                        "Maybe"
+                    ) {
+                        count += 1;
+                    }
+
+                    return total + count;
+                },
+                0,
+            );
+        }, [guests]);
+
+    const declinedCount =
+        useMemo(() => {
+            return guests.reduce(
+                (total, guest) => {
+                    let count = 0;
+
+                    if (
+                        guest.rsvp ===
+                        "Declined"
+                    ) {
+                        count += 1;
+                    }
+
+                    if (
+                        guest.plusOne?.trim() &&
+                        guest.plusOneRsvp ===
+                        "Declined"
+                    ) {
+                        count += 1;
+                    }
+
+                    return total + count;
+                },
+                0,
+            );
+        }, [guests]);
+
+    const noResponseCount =
+        useMemo(() => {
+            return guests.reduce(
+                (total, guest) => {
+                    let count = 0;
+
+                    if (
+                        !guest.rsvp ||
+                        guest.rsvp ===
+                        "No Response"
+                    ) {
+                        count += 1;
+                    }
+
+                    if (
+                        guest.plusOne?.trim() &&
+                        (
+                            !guest.plusOneRsvp ||
+                            guest.plusOneRsvp ===
+                            "No Response"
+                        )
+                    ) {
+                        count += 1;
+                    }
+
+                    return total + count;
+                },
+                0,
+            );
+        }, [guests]);
+
+    /*
+     * ================================
+     * FILTERED GUESTS
+     * ================================
+     */
+
+    const filteredGuests =
+        useMemo(() => {
+            const normalizedSearch =
+                search
+                    .trim()
+                    .toLowerCase();
+
+            return guests.filter(
+                (guest) => {
+                    const guestName =
+                        guest.name
+                            ?.toLowerCase() ?? "";
+
+                    const plusOneName =
+                        guest.plusOne
+                            ?.toLowerCase() ?? "";
+
+                    const matchesSearch =
+                        !normalizedSearch ||
+                        guestName.includes(
+                            normalizedSearch,
+                        ) ||
+                        plusOneName.includes(
+                            normalizedSearch,
+                        );
+
+                    let matchesFilter = true;
+
+                    if (
+                        activeFilter !== "All"
+                    ) {
+                        const guestMatches =
+                            guest.rsvp ===
+                            activeFilter;
+
+                        const plusOneMatches =
+                            Boolean(
+                                guest.plusOne?.trim(),
+                            ) &&
+                            guest.plusOneRsvp ===
+                            activeFilter;
+
+                        matchesFilter =
+                            guestMatches ||
+                            plusOneMatches;
+                    }
+
+                    return (
+                        matchesSearch &&
+                        matchesFilter
+                    );
+                },
+            );
+        }, [
+            guests,
+            search,
+            activeFilter,
+        ]);
+
+    /*
+     * ================================
+     * FORM
+     * ================================
+     */
+
+    const resetForm = () => {
+        setEditingGuestId(null);
+
+        setFormData(
+            getDefaultFormData(),
+        );
+
+        setShowForm(false);
+    };
+
+    const openAddForm = () => {
+        setEditingGuestId(null);
+
+        setFormData(
+            getDefaultFormData(),
+        );
+
+        setShowForm(true);
+    };
+
+    const handleChange = (
+        event,
+    ) => {
+        const {
+            name,
+            value,
+        } = event.target;
+
+        setFormData(
+            (current) => ({
+                ...current,
+                [name]: value,
+            }),
+        );
+    };
+
+    /*
+     * ================================
+     * SAVE GUEST
+     * ================================
+     */
+
+    const handleSubmit =
+        async (event) => {
+            event.preventDefault();
+
+            if (saving) {
+                return;
+            }
+
+            const name =
+                formData.name.trim();
+
+            if (!name) {
+                return;
+            }
+
+            const plusOne =
+                formData.plusOne.trim();
+
+            const guestData = {
+                name,
+
+                rsvp:
+                    formData.rsvp,
+
+                plusOne,
+
+                plusOneRsvp:
+                    plusOne
+                        ? formData.plusOneRsvp
+                        : "No Response",
+
+                foodNotes:
+                    formData.foodNotes.trim(),
+
+                notes:
+                    formData.notes.trim(),
+
+                updatedAt:
+                    serverTimestamp(),
+            };
+
+            try {
+                setSaving(true);
+
+                if (editingGuestId) {
+                    await updateDoc(
+                        doc(
+                            db,
+                            "parties",
+                            PARTY_ID,
+                            "guests",
+                            editingGuestId,
+                        ),
+                        guestData,
+                    );
+                } else {
+                    await addDoc(
+                        collection(
+                            db,
+                            "parties",
+                            PARTY_ID,
+                            "guests",
+                        ),
+                        {
+                            ...guestData,
+
+                            createdAt:
+                                serverTimestamp(),
+                        },
+                    );
+                }
+
+                /*
+                 * CLOSE THE MODAL ONLY
+                 * AFTER FIRESTORE SAVES
+                 * SUCCESSFULLY.
+                 */
+
+                setShowForm(false);
+
+                setEditingGuestId(null);
+
+                setFormData(
+                    getDefaultFormData(),
+                );
+            } catch (error) {
+                console.error(
+                    "Error saving guest:",
+                    error,
+                );
+            } finally {
+                setSaving(false);
+            }
+        };
+
+    /*
+     * ================================
+     * EDIT GUEST
+     * ================================
+     */
+
+    const handleEdit = (
+        guest,
+    ) => {
+        setEditingGuestId(
+            guest.id,
+        );
+
+        setFormData({
+            name:
+                guest.name ?? "",
+
+            rsvp:
+                guest.rsvp ??
+                "No Response",
+
+            plusOne:
+                guest.plusOne ?? "",
+
+            plusOneRsvp:
+                guest.plusOneRsvp ??
+                "No Response",
+
+            foodNotes:
+                guest.foodNotes ?? "",
+
+            notes:
+                guest.notes ?? "",
         });
-      }
 
-      setShowForm(false);
-      setEditingGuestId(null);
+        setShowForm(true);
+    };
 
-      setFormData({
-        name: "",
-        rsvp: "No Response",
-        plusOne: "",
-        plusOneRsvp: "No Response",
-        foodNotes: "",
-        notes: "",
-      });
-    } catch (error) {
-      console.error(
-        "Error saving guest:",
-        error,
-      );
-    }
-  };
+    /*
+     * ================================
+     * DELETE GUEST
+     * ================================
+     */
 
-  const handleEdit = (guest) => {
-    setEditingGuestId(guest.id);
-
-    setFormData({
-      name: guest.name ?? "",
-      rsvp: guest.rsvp ?? "No Response",
-      plusOne: guest.plusOne ?? "",
-      plusOneRsvp:
-        guest.plusOneRsvp ?? "No Response",
-      foodNotes: guest.foodNotes ?? "",
-      notes: guest.notes ?? "",
-    });
-
-    setShowForm(true);
-  };
-
-  const handleDelete = async (guestId) => {
-    try {
-      await deleteDoc(
-        doc(
-          db,
-          "parties",
-          PARTY_ID,
-          "guests",
-          guestId,
-        ),
-      );
-    } catch (error) {
-      console.error(
-        "Error deleting guest:",
-        error,
-      );
-    }
-  };
-
-  const handleStatusChange = async (
-    guestId,
-    status,
-  ) => {
-    try {
-      const guestRef = doc(
-        db,
-        "parties",
-        PARTY_ID,
-        "guests",
-        guestId,
-      );
-
-      await updateDoc(guestRef, {
-        rsvp: status,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      console.error(
-        "Error updating RSVP:",
-        error,
-      );
-    }
-  };
-
-  const handlePlusOneStatusChange = async (
-    guestId,
-    status,
-  ) => {
-    try {
-      const guestRef = doc(
-        db,
-        "parties",
-        PARTY_ID,
-        "guests",
-        guestId,
-      );
-
-      await updateDoc(guestRef, {
-        plusOneRsvp: status,
-        updatedAt: serverTimestamp(),
-      });
-    } catch (error) {
-      console.error(
-        "Error updating plus-one RSVP:",
-        error,
-      );
-    }
-  };
-
-  const updateExpectedAttendance = async (
-    newValue,
-  ) => {
-    const safeValue = Math.max(
-      0,
-      Number(newValue) || 0,
-    );
-
-    setExpectedAttendance(safeValue);
-
-    try {
-      const partyRef = doc(
-        db,
-        "parties",
-        PARTY_ID,
-      );
-
-      await setDoc(
-        partyRef,
-        {
-          expectedAttendance: safeValue,
-          updatedAt: serverTimestamp(),
-        },
-        {
-          merge: true,
-        },
-      );
-    } catch (error) {
-      console.error(
-        "Error updating expected attendance:",
-        error,
-      );
-    }
-  };
-
-  const getStatusClass = (status) => {
-    return `guest-status guest-status-${(
-      status ?? "No Response"
-    )
-      .toLowerCase()
-      .replaceAll(" ", "-")}`;
-  };
-
-  return (
-    <div className="page">
-      <header className="page-header">
-        <div>
-          <span className="page-eyebrow">
-            People
-          </span>
-
-          <h1>Guest List</h1>
-
-          <p>
-            Track invitations, RSVPs, plus ones,
-            dietary notes, and the number of
-            people you actually expect to attend.
-          </p>
-        </div>
-
-        <button
-          className="primary-button"
-          onClick={() => {
-            resetForm();
-            setShowForm(true);
-          }}
-        >
-          + Add Guest
-        </button>
-      </header>
-
-      <section className="guest-stats-grid">
-        <div className="guest-stat-card">
-          <span>Invited</span>
-          <strong>{counts.invited}</strong>
-        </div>
-
-        <div className="guest-stat-card">
-          <span>Attending</span>
-          <strong>{counts.attending}</strong>
-        </div>
-
-        <div className="guest-stat-card">
-          <span>Maybe</span>
-          <strong>{counts.maybe}</strong>
-        </div>
-
-        <div className="guest-stat-card">
-          <span>No Response</span>
-          <strong>{counts.noResponse}</strong>
-        </div>
-
-        <div className="guest-stat-card declined">
-          <span>Declined</span>
-          <strong>{counts.declined}</strong>
-        </div>
-      </section>
-
-      <section className="expected-attendance-card">
-        <div>
-          <span className="card-eyebrow">
-            Planning Number
-          </span>
-
-          <h2>Expected Attendance</h2>
-
-          <p>
-            Food and drink calculations will use
-            this number instead of assuming every
-            invited guest will attend.
-          </p>
-        </div>
-
-        <div className="expected-attendance-input">
-          <button
-            type="button"
-            onClick={() =>
-              updateExpectedAttendance(
-                expectedAttendance - 1,
-              )
-            }
-          >
-            −
-          </button>
-
-          <input
-            type="number"
-            min="0"
-            value={expectedAttendance}
-            onChange={(event) =>
-              updateExpectedAttendance(
-                event.target.value,
-              )
-            }
-          />
-
-          <button
-            type="button"
-            onClick={() =>
-              updateExpectedAttendance(
-                expectedAttendance + 1,
-              )
-            }
-          >
-            +
-          </button>
-        </div>
-      </section>
-
-      <section className="guest-toolbar">
-        <div className="guest-search">
-          <input
-            type="search"
-            placeholder="Search guests..."
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-          />
-        </div>
-
-        <div className="guest-filter-row">
-          {[
-            "All",
-            "Attending",
-            "Maybe",
-            "No Response",
-            "Declined",
-          ].map((option) => (
-            <button
-              key={option}
-              type="button"
-              className={
-                filter === option
-                  ? "guest-filter active"
-                  : "guest-filter"
-              }
-              onClick={() =>
-                setFilter(option)
-              }
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="guest-list-card">
-        <div className="guest-list-header">
-          <div>Guest</div>
-          <div>RSVP</div>
-          <div>Plus One</div>
-          <div>Food Notes</div>
-          <div />
-        </div>
-
-        {loading ? (
-          <div className="guest-empty-state">
-            Loading guests...
-          </div>
-        ) : filteredGuests.length === 0 ? (
-          <div className="guest-empty-state">
-            {guests.length === 0
-              ? "No guests yet. Add your first guest!"
-              : "No guests match your search."}
-          </div>
-        ) : (
-          filteredGuests.map((guest) => (
-            <div
-              className="guest-row"
-              key={guest.id}
-            >
-              <div className="guest-name-cell">
-                <div className="guest-avatar">
-                  {(guest.name ?? "?")
-                    .charAt(0)
-                    .toUpperCase()}
-                </div>
-
-                <div>
-                  <strong>
-                    {guest.name}
-                  </strong>
-
-                  {guest.notes && (
-                    <span>
-                      {guest.notes}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <select
-                  className={getStatusClass(
-                    guest.rsvp,
-                  )}
-                  value={
-                    guest.rsvp ??
-                    "No Response"
-                  }
-                  onChange={(event) =>
-                    handleStatusChange(
-                      guest.id,
-                      event.target.value,
-                    )
-                  }
-                >
-                  {rsvpOptions.map(
-                    (option) => (
-                      <option
-                        key={option}
-                        value={option}
-                      >
-                        {option}
-                      </option>
+    const handleDelete =
+        async (guestId) => {
+            try {
+                await deleteDoc(
+                    doc(
+                        db,
+                        "parties",
+                        PARTY_ID,
+                        "guests",
+                        guestId,
                     ),
-                  )}
-                </select>
-              </div>
+                );
+            } catch (error) {
+                console.error(
+                    "Error deleting guest:",
+                    error,
+                );
+            }
+        };
 
-              <div>
-                {guest.plusOne ? (
-                  <div className="plus-one-cell">
+    /*
+     * ================================
+     * DIRECT RSVP UPDATE
+     * ================================
+     */
+
+    const updateGuestRsvp =
+        async (
+            guestId,
+            rsvp,
+        ) => {
+            try {
+                await updateDoc(
+                    doc(
+                        db,
+                        "parties",
+                        PARTY_ID,
+                        "guests",
+                        guestId,
+                    ),
+                    {
+                        rsvp,
+
+                        updatedAt:
+                            serverTimestamp(),
+                    },
+                );
+            } catch (error) {
+                console.error(
+                    "Error updating RSVP:",
+                    error,
+                );
+            }
+        };
+
+    const updatePlusOneRsvp =
+        async (
+            guestId,
+            plusOneRsvp,
+        ) => {
+            try {
+                await updateDoc(
+                    doc(
+                        db,
+                        "parties",
+                        PARTY_ID,
+                        "guests",
+                        guestId,
+                    ),
+                    {
+                        plusOneRsvp,
+
+                        updatedAt:
+                            serverTimestamp(),
+                    },
+                );
+            } catch (error) {
+                console.error(
+                    "Error updating plus-one RSVP:",
+                    error,
+                );
+            }
+        };
+
+    /*
+     * ================================
+     * EXPECTED ATTENDANCE
+     * ================================
+     */
+
+    const handleExpectedAttendance =
+        async (event) => {
+            const value =
+                Math.max(
+                    0,
+                    Number(
+                        event.target.value,
+                    ) || 0,
+                );
+
+            setExpectedAttendance(value);
+
+            try {
+                await setDoc(
+                    doc(
+                        db,
+                        "parties",
+                        PARTY_ID,
+                    ),
+                    {
+                        expectedAttendance:
+                            value,
+
+                        updatedAt:
+                            serverTimestamp(),
+                    },
+                    {
+                        merge: true,
+                    },
+                );
+            } catch (error) {
+                console.error(
+                    "Error updating expected attendance:",
+                    error,
+                );
+            }
+        };
+
+    /*
+     * ================================
+     * RSVP CLASS
+     * ================================
+     */
+
+    const getStatusClass = (
+        status,
+    ) => {
+        switch (status) {
+            case "Attending":
+                return "guest-status attending";
+
+            case "Maybe":
+                return "guest-status maybe";
+
+            case "Declined":
+                return "guest-status declined";
+
+            default:
+                return "guest-status no-response";
+        }
+    };
+
+    /*
+     * ================================
+     * RENDER
+     * ================================
+     */
+
+    return (
+        <div className="page">
+            <header className="page-header">
+                <div>
+                    <span className="page-eyebrow">
+                        People
+                    </span>
+
+                    <h1>Guests</h1>
+
+                    <p>
+                        Keep track of invitations,
+                        RSVPs, plus ones, food notes,
+                        and who you&apos;re expecting
+                        at the party.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    className="primary-button"
+                    onClick={openAddForm}
+                >
+                    + Add Guest
+                </button>
+            </header>
+
+            {/* =========================
+          SUMMARY
+      ========================== */}
+
+            <section className="guest-stats-grid">
+                <div className="guest-stat-card">
+                    <span>
+                        Invited
+                    </span>
+
                     <strong>
-                      {guest.plusOne}
+                        {invitedCount}
                     </strong>
 
-                    <select
-                      className={getStatusClass(
-                        guest.plusOneRsvp ??
-                          "No Response",
-                      )}
-                      value={
-                        guest.plusOneRsvp ??
-                        "No Response"
-                      }
-                      onChange={(event) =>
-                        handlePlusOneStatusChange(
-                          guest.id,
-                          event.target.value,
-                        )
-                      }
-                    >
-                      {rsvpOptions.map(
-                        (option) => (
-                          <option
-                            key={option}
-                            value={option}
-                          >
-                            {option}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </div>
-                ) : (
-                  <span className="guest-secondary-text">
-                    —
-                  </span>
-                )}
-              </div>
+                    <small>
+                        including plus ones
+                    </small>
+                </div>
 
-              <div className="guest-secondary-text">
-                {guest.foodNotes || "—"}
-              </div>
+                <div className="guest-stat-card">
+                    <span>
+                        Attending
+                    </span>
 
-              <div className="guest-actions">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleEdit(guest)
-                  }
-                >
-                  Edit
-                </button>
+                    <strong>
+                        {attendingCount}
+                    </strong>
 
-                <button
-                  type="button"
-                  className="delete-action"
-                  onClick={() =>
-                    handleDelete(guest.id)
-                  }
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </section>
+                    <small>
+                        confirmed
+                    </small>
+                </div>
 
-      <div className="guest-list-footer">
-        Showing {filteredGuests.length} of{" "}
-        {guests.length} guest entries
-      </div>
+                <div className="guest-stat-card">
+                    <span>Maybe</span>
 
-      {showForm && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (
-              event.target ===
-              event.currentTarget
-            ) {
-              resetForm();
-            }
-          }}
-        >
-          <div className="modal-card">
-            <div className="modal-header">
-              <div>
-                <span className="card-eyebrow">
-                  {editingGuestId
-                    ? "Edit Guest"
-                    : "New Guest"}
-                </span>
+                    <strong>
+                        {maybeCount}
+                    </strong>
 
-                <h2>
-                  {editingGuestId
-                    ? "Update Guest"
-                    : "Add Guest"}
-                </h2>
-              </div>
+                    <small>
+                        undecided
+                    </small>
+                </div>
 
-              <button
-                type="button"
-                className="modal-close"
-                onClick={resetForm}
-              >
-                ×
-              </button>
-            </div>
+                <div className="guest-stat-card">
+                    <span>
+                        No Response
+                    </span>
 
-            <form
-              className="guest-form"
-              onSubmit={handleSubmit}
-            >
-              <label>
-                Guest Name
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Guest name"
-                  autoFocus
-                  required
-                />
-              </label>
+                    <strong>
+                        {noResponseCount}
+                    </strong>
 
-              <label>
-                RSVP Status
-                <select
-                  name="rsvp"
-                  value={formData.rsvp}
-                  onChange={handleChange}
-                >
-                  {rsvpOptions.map(
-                    (option) => (
-                      <option
-                        value={option}
-                        key={option}
-                      >
-                        {option}
-                      </option>
-                    ),
-                  )}
-                </select>
-              </label>
+                    <small>
+                        awaiting RSVP
+                    </small>
+                </div>
 
-              <label>
-                Plus One
-                <input
-                  type="text"
-                  name="plusOne"
-                  value={formData.plusOne}
-                  onChange={handleChange}
-                  placeholder="Optional"
-                />
-              </label>
+                <div className="guest-stat-card">
+                    <span>
+                        Declined
+                    </span>
 
-              {formData.plusOne.trim() && (
-                <label>
-                  Plus One RSVP
-                  <select
-                    name="plusOneRsvp"
-                    value={
-                      formData.plusOneRsvp
-                    }
-                    onChange={handleChange}
-                  >
-                    {rsvpOptions.map(
-                      (option) => (
-                        <option
-                          value={option}
-                          key={option}
+                    <strong>
+                        {declinedCount}
+                    </strong>
+
+                    <small>
+                        not attending
+                    </small>
+                </div>
+            </section>
+
+            {/* =========================
+          EXPECTED ATTENDANCE
+      ========================== */}
+
+            <section className="expected-attendance-card">
+                <div>
+                    <span className="card-eyebrow">
+                        Planning Number
+                    </span>
+
+                    <h2>
+                        Expected Attendance
+                    </h2>
+
+                    <p>
+                        Use this number for food and
+                        drink planning even while
+                        RSVPs are still coming in.
+                    </p>
+                </div>
+
+                <div className="expected-attendance-input">
+                    <input
+                        type="number"
+                        min="0"
+                        value={
+                            expectedAttendance
+                        }
+                        onChange={
+                            handleExpectedAttendance
+                        }
+                    />
+
+                    <span>guests</span>
+                </div>
+            </section>
+
+            {/* =========================
+          SEARCH / FILTER
+      ========================== */}
+
+            <section className="guest-toolbar">
+                <div className="guest-search">
+                    <input
+                        type="search"
+                        value={search}
+                        placeholder="Search guests..."
+                        onChange={(
+                            event,
+                        ) =>
+                            setSearch(
+                                event.target.value,
+                            )
+                        }
+                    />
+                </div>
+
+                <div className="guest-filter-row">
+                    {[
+                        "All",
+                        "Attending",
+                        "Maybe",
+                        "No Response",
+                        "Declined",
+                    ].map((filter) => (
+                        <button
+                            type="button"
+                            key={filter}
+                            className={
+                                activeFilter ===
+                                    filter
+                                    ? "guest-filter active"
+                                    : "guest-filter"
+                            }
+                            onClick={() =>
+                                setActiveFilter(
+                                    filter,
+                                )
+                            }
                         >
-                          {option}
-                        </option>
-                      ),
+                            {filter}
+                        </button>
+                    ))}
+                </div>
+            </section>
+
+            {/* =========================
+          GUEST LIST
+      ========================== */}
+
+            {loading ? (
+                <div className="empty-page-card">
+                    Loading guests...
+                </div>
+            ) : filteredGuests.length ===
+                0 ? (
+                <div className="empty-page-card">
+                    <div className="menu-empty-content">
+                        <strong>
+                            {guests.length === 0
+                                ? "No guests added yet."
+                                : "No guests match those filters."}
+                        </strong>
+
+                        {guests.length === 0 && (
+                            <>
+                                <span>
+                                    Start adding everyone
+                                    you invited to the
+                                    party.
+                                </span>
+
+                                <button
+                                    type="button"
+                                    className="primary-button"
+                                    onClick={
+                                        openAddForm
+                                    }
+                                >
+                                    + Add First Guest
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <section className="guest-list-card">
+                    <div className="guest-list-header">
+                        <div>Guest</div>
+                        <div>RSVP</div>
+                        <div>Plus One</div>
+                        <div>Food Notes</div>
+                        <div />
+                    </div>
+
+                    {filteredGuests.map(
+                        (guest) => (
+                            <div
+                                className="guest-row"
+                                key={guest.id}
+                            >
+                                {/* MAIN GUEST */}
+
+                                <div className="guest-name-cell">
+                                    <div className="guest-avatar">
+                                        {guest.name
+                                            ?.charAt(0)
+                                            .toUpperCase()}
+                                    </div>
+
+                                    <div>
+                                        <strong>
+                                            {guest.name}
+                                        </strong>
+
+                                        {guest.notes && (
+                                            <span className="guest-secondary-text">
+                                                {guest.notes}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* MAIN RSVP */}
+
+                                <div>
+                                    <select
+                                        className={getStatusClass(
+                                            guest.rsvp ??
+                                            "No Response",
+                                        )}
+                                        value={
+                                            guest.rsvp ??
+                                            "No Response"
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
+                                            updateGuestRsvp(
+                                                guest.id,
+                                                event.target
+                                                    .value,
+                                            )
+                                        }
+                                    >
+                                        {rsvpOptions.map(
+                                            (option) => (
+                                                <option
+                                                    value={
+                                                        option
+                                                    }
+                                                    key={
+                                                        option
+                                                    }
+                                                >
+                                                    {option}
+                                                </option>
+                                            ),
+                                        )}
+                                    </select>
+                                </div>
+
+                                {/* PLUS ONE */}
+
+                                <div className="plus-one-cell">
+                                    {guest.plusOne ? (
+                                        <>
+                                            <strong>
+                                                {
+                                                    guest.plusOne
+                                                }
+                                            </strong>
+
+                                            <select
+                                                className={getStatusClass(
+                                                    guest.plusOneRsvp ??
+                                                    "No Response",
+                                                )}
+                                                value={
+                                                    guest.plusOneRsvp ??
+                                                    "No Response"
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) =>
+                                                    updatePlusOneRsvp(
+                                                        guest.id,
+                                                        event.target
+                                                            .value,
+                                                    )
+                                                }
+                                            >
+                                                {rsvpOptions.map(
+                                                    (option) => (
+                                                        <option
+                                                            value={
+                                                                option
+                                                            }
+                                                            key={
+                                                                option
+                                                            }
+                                                        >
+                                                            {
+                                                                option
+                                                            }
+                                                        </option>
+                                                    ),
+                                                )}
+                                            </select>
+                                        </>
+                                    ) : (
+                                        <span className="guest-secondary-text">
+                                            —
+                                        </span>
+                                    )}
+                                </div>
+
+                                {/* FOOD NOTES */}
+
+                                <div className="guest-secondary-text">
+                                    {guest.foodNotes ||
+                                        "—"}
+                                </div>
+
+                                {/* ACTIONS */}
+
+                                <div className="guest-actions">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            handleEdit(
+                                                guest,
+                                            )
+                                        }
+                                    >
+                                        Edit
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="delete-action"
+                                        onClick={() =>
+                                            handleDelete(
+                                                guest.id,
+                                            )
+                                        }
+                                    >
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ),
                     )}
-                  </select>
-                </label>
-              )}
 
-              <label>
-                Food / Dietary Notes
-                <input
-                  type="text"
-                  name="foodNotes"
-                  value={formData.foodNotes}
-                  onChange={handleChange}
-                  placeholder="Vegetarian, allergy, etc."
-                />
-              </label>
+                    <div className="guest-list-footer">
+                        Showing{" "}
+                        {filteredGuests.length} of{" "}
+                        {guests.length} guest
+                        {guests.length === 1
+                            ? ""
+                            : " records"}
+                    </div>
+                </section>
+            )}
 
-              <label className="full-field">
-                Notes
-                <textarea
-                  name="notes"
-                  value={formData.notes}
-                  onChange={handleChange}
-                  placeholder="Anything else you want to remember..."
-                  rows="4"
-                />
-              </label>
+            {/* =========================
+          ADD / EDIT MODAL
+      ========================== */}
 
-              <div className="modal-actions full-field">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={resetForm}
+            {showForm && (
+                <div
+                    className="modal-backdrop"
+                    onMouseDown={(
+                        event,
+                    ) => {
+                        if (
+                            event.target ===
+                            event.currentTarget &&
+                            !saving
+                        ) {
+                            resetForm();
+                        }
+                    }}
                 >
-                  Cancel
-                </button>
+                    <div className="modal-card guest-form-modal">
+                        <div className="modal-header">
+                            <div>
+                                <span className="card-eyebrow">
+                                    {editingGuestId
+                                        ? "Edit Guest"
+                                        : "New Guest"}
+                                </span>
 
-                <button
-                  type="submit"
-                  className="primary-button"
-                >
-                  {editingGuestId
-                    ? "Save Changes"
-                    : "Add Guest"}
-                </button>
-              </div>
-            </form>
-          </div>
+                                <h2>
+                                    {editingGuestId
+                                        ? "Update Guest"
+                                        : "Add Guest"}
+                                </h2>
+                            </div>
+
+                            <button
+                                type="button"
+                                className="modal-close"
+                                onClick={
+                                    resetForm
+                                }
+                                disabled={saving}
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <form
+                            className="guest-form"
+                            onSubmit={handleSubmit}
+                        >
+                            <label>
+                                Guest Name
+
+                                <input
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
+                                    onChange={handleChange}
+                                    placeholder="Guest name"
+                                    required
+                                    autoFocus
+                                />
+                            </label>
+
+                            <label>
+                                Plus One
+
+                                <input
+                                    type="text"
+                                    name="plusOne"
+                                    value={formData.plusOne}
+                                    onChange={handleChange}
+                                    placeholder="Optional"
+                                />
+                            </label>
+
+                            <label>
+                                Guest RSVP
+
+                                <select
+                                    name="rsvp"
+                                    value={formData.rsvp}
+                                    onChange={handleChange}
+                                >
+                                    {rsvpOptions.map((option) => (
+                                        <option
+                                            value={option}
+                                            key={option}
+                                        >
+                                            {option}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label>
+                                Plus One RSVP
+
+                                <select
+                                    name="plusOneRsvp"
+                                    value={formData.plusOneRsvp}
+                                    onChange={handleChange}
+                                    disabled={!formData.plusOne.trim()}
+                                >
+                                    {rsvpOptions.map((option) => (
+                                        <option
+                                            value={option}
+                                            key={option}
+                                        >
+                                            {option}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label className="full-field">
+                                Food / Dietary Notes
+
+                                <textarea
+                                    name="foodNotes"
+                                    value={formData.foodNotes}
+                                    onChange={handleChange}
+                                    rows="3"
+                                    placeholder="Allergies, vegetarian, dietary needs..."
+                                />
+                            </label>
+
+                            <label className="full-field">
+                                Notes
+
+                                <textarea
+                                    name="notes"
+                                    value={formData.notes}
+                                    onChange={handleChange}
+                                    rows="3"
+                                    placeholder="Anything else you want to remember..."
+                                />
+                            </label>
+
+                            <div className="modal-actions full-field">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    onClick={resetForm}
+                                    disabled={saving}
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="primary-button"
+                                    disabled={saving}
+                                >
+                                    {saving
+                                        ? "Saving..."
+                                        : editingGuestId
+                                            ? "Save Changes"
+                                            : "Add Guest"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
 export default Guests;
