@@ -1,0 +1,732 @@
+/* ================================
+   DECORATIONS PAGE
+================================ */
+
+.decor-stats-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      6,
+      minmax(0, 1fr)
+    );
+  gap: 14px;
+
+  margin-bottom: 24px;
+}
+
+.decor-stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  min-width: 0;
+
+  padding: 20px;
+
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+  border-radius:
+    var(--radius-medium);
+
+  box-shadow:
+    var(--shadow);
+}
+
+.decor-stat-card.featured {
+  background:
+    linear-gradient(
+      135deg,
+      var(--purple-light),
+      var(--orange-light)
+    );
+}
+
+.decor-stat-card span {
+  color:
+    var(--text-soft);
+
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.decor-stat-card strong {
+  overflow: hidden;
+
+  font-family:
+    "Playfair Display",
+    serif;
+
+  font-size: 1.8rem;
+  font-weight: 600;
+
+  text-overflow:
+    ellipsis;
+}
+
+.decor-stat-card small {
+  color:
+    var(--text-soft);
+
+  font-size: 0.63rem;
+}
+
+/* ================================
+   TOOLBAR
+================================ */
+
+.decor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 18px;
+
+  margin-bottom: 18px;
+}
+
+/* ================================
+   GRID
+================================ */
+
+.decor-card-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+  gap: 16px;
+}
+
+/* ================================
+   CARD
+================================ */
+
+.decor-card {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+  min-height: 310px;
+
+  padding: 0;
+
+  overflow: hidden;
+
+  background:
+    var(--surface);
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:
+    var(--radius-large);
+
+  box-shadow:
+    var(--shadow);
+
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.decor-card:hover {
+  transform:
+    translateY(-2px);
+
+  border-color:
+    #d7cbc3;
+
+  box-shadow:
+    0 17px 38px
+    rgba(
+      70,
+      55,
+      43,
+      0.09
+    );
+}
+
+.decor-card-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+
+  padding: 21px;
+}
+
+.decor-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content:
+    space-between;
+  gap: 14px;
+}
+
+.decor-card-top > div {
+  min-width: 0;
+}
+
+.decor-card-eyebrow {
+  color:
+    var(--orange);
+
+  font-size: 0.61rem;
+  font-weight: 700;
+
+  letter-spacing:
+    0.07em;
+
+  text-transform:
+    uppercase;
+}
+
+.decor-card h2 {
+  margin: 5px 0 0;
+
+  overflow-wrap:
+    anywhere;
+
+  font-family:
+    "Playfair Display",
+    serif;
+
+  font-size: 1.32rem;
+  line-height: 1.2;
+}
+
+/* ================================
+   PHOTOS
+================================ */
+
+.decor-photo-wrap {
+  width: 100%;
+
+  aspect-ratio:
+    16 / 10;
+
+  overflow: hidden;
+
+  background:
+    var(--surface-soft);
+
+  border-bottom:
+    1px solid
+    var(--border);
+}
+
+.decor-photo {
+  display: block;
+
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+
+  transition:
+    transform 0.2s ease;
+}
+
+.decor-card:hover
+  .decor-photo {
+  transform:
+    scale(1.02);
+}
+
+/* ================================
+   STATUS PILLS
+================================ */
+
+.decor-status {
+  flex-shrink: 0;
+
+  padding: 5px 9px;
+
+  border-radius:
+    999px;
+
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.decor-status.need-to-buy {
+  background: #f6ead3;
+  color: #876025;
+}
+
+.decor-status.purchased {
+  background:
+    var(--purple-light);
+
+  color: #66526f;
+}
+
+.decor-status.diy {
+  background:
+    var(--orange-light);
+
+  color:
+    var(--orange-dark);
+}
+
+.decor-status.ready {
+  background:
+    var(--green-light);
+
+  color: #536650;
+}
+
+/* ================================
+   DETAILS
+================================ */
+
+.decor-details-grid {
+  display: grid;
+  grid-template-columns:
+    1fr 1fr;
+  gap: 10px;
+
+  margin-top: 22px;
+}
+
+.decor-details-grid > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  min-width: 0;
+
+  padding: 13px;
+
+  background:
+    var(--surface-soft);
+
+  border:
+    1px solid
+    #eee7e1;
+
+  border-radius:
+    11px;
+}
+
+.decor-details-grid span,
+.decor-detail-line span {
+  color:
+    var(--text-soft);
+
+  font-size: 0.62rem;
+  font-weight: 600;
+}
+
+.decor-details-grid strong {
+  font-family:
+    "Playfair Display",
+    serif;
+
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.decor-detail-line {
+  display: flex;
+  align-items: center;
+  justify-content:
+    space-between;
+  gap: 14px;
+
+  margin-top: 13px;
+
+  font-size: 0.7rem;
+}
+
+.decor-detail-line strong {
+  min-width: 0;
+
+  overflow: hidden;
+
+  font-size: 0.7rem;
+
+  text-overflow:
+    ellipsis;
+
+  white-space:
+    nowrap;
+}
+
+.decor-notes {
+  margin: 15px 0 0;
+
+  color:
+    var(--text-soft);
+
+  font-size: 0.7rem;
+  line-height: 1.55;
+}
+
+/* ================================
+   STATUS CONTROL
+================================ */
+
+.decor-status-control {
+  margin-top: 18px;
+}
+
+.decor-status-control label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  color:
+    var(--text-soft);
+
+  font-size: 0.62rem;
+  font-weight: 700;
+}
+
+.decor-status-control select {
+  width: 100%;
+
+  padding: 8px 9px;
+
+  background:
+    var(--surface-soft);
+
+  color:
+    var(--text);
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:
+    8px;
+
+  outline: none;
+
+  font-family: inherit;
+  font-size: 0.69rem;
+
+  cursor: pointer;
+}
+
+.decor-status-control select:focus {
+  border-color:
+    var(--orange);
+}
+
+/* ================================
+   ACTIONS
+================================ */
+
+.decor-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content:
+    flex-end;
+  gap: 4px;
+
+  flex-wrap: wrap;
+
+  margin-top: auto;
+
+  padding-top: 20px;
+}
+
+.decor-card-actions button,
+.decor-card-actions a {
+  padding: 6px 8px;
+
+  background:
+    transparent;
+
+  color:
+    var(--text-soft);
+
+  border: none;
+  border-radius:
+    7px;
+
+  cursor: pointer;
+
+  font-family: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+
+  text-decoration: none;
+}
+
+.decor-card-actions button:hover {
+  background:
+    var(--surface-soft);
+
+  color:
+    var(--text);
+}
+
+.decor-card-actions a {
+  color:
+    var(--orange);
+}
+
+.decor-card-actions a:hover {
+  background:
+    var(--orange-light);
+
+  color:
+    var(--orange-dark);
+}
+
+.decor-card-actions
+  .delete-action:hover {
+  background:
+    #f8e5e2;
+
+  color:
+    #a84b41;
+}
+
+/* ================================
+   EMPTY STATE
+================================ */
+
+.decor-empty-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+
+  max-width: 420px;
+}
+
+.decor-empty-content strong {
+  color:
+    var(--text);
+
+  font-family:
+    "Playfair Display",
+    serif;
+
+  font-size: 1.2rem;
+}
+
+.decor-empty-content span {
+  margin-bottom: 8px;
+
+  color:
+    var(--text-soft);
+
+  font-size: 0.76rem;
+  line-height: 1.55;
+
+  text-align: center;
+}
+
+/* ================================
+   FORM / MODAL
+================================ */
+
+.decor-form-modal {
+  width:
+    min(
+      700px,
+      100%
+    );
+}
+
+.decor-form {
+  display: grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap: 17px;
+}
+
+.decor-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  min-width: 0;
+
+  color:
+    var(--text);
+
+  font-size: 0.71rem;
+  font-weight: 700;
+}
+
+.decor-form input,
+.decor-form select,
+.decor-form textarea {
+  width: 100%;
+
+  padding: 10px 11px;
+
+  background: white;
+
+  color:
+    var(--text);
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:
+    9px;
+
+  outline: none;
+
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 400;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.decor-form input:focus,
+.decor-form select:focus,
+.decor-form textarea:focus {
+  border-color:
+    var(--orange);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(
+      189,
+      100,
+      45,
+      0.08
+    );
+}
+
+.decor-form textarea {
+  min-height: 100px;
+
+  resize: vertical;
+}
+
+.decor-form .full-field {
+  grid-column:
+    1 / -1;
+}
+
+/* ================================
+   PHOTO PREVIEW
+================================ */
+
+.decor-form-photo-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+
+  padding: 14px;
+
+  background:
+    var(--surface-soft);
+
+  border:
+    1px solid
+    var(--border);
+
+  border-radius:
+    12px;
+}
+
+.decor-form-photo-preview img {
+  display: block;
+
+  width: 100%;
+  max-height: 280px;
+
+  object-fit: cover;
+
+  border-radius:
+    9px;
+}
+
+/* ================================
+   RESPONSIVE
+================================ */
+
+@media (
+  max-width: 1250px
+) {
+  .decor-stats-grid {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+@media (
+  max-width: 1100px
+) {
+  .decor-card-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+@media (
+  max-width: 800px
+) {
+  .decor-stats-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .decor-toolbar {
+    align-items:
+      flex-start;
+
+    flex-direction:
+      column;
+  }
+
+  .decor-form {
+    grid-template-columns:
+      1fr;
+  }
+
+  .decor-form label,
+  .decor-form .full-field {
+    grid-column: 1;
+  }
+}
+
+@media (
+  max-width: 650px
+) {
+  .decor-card-grid,
+  .decor-stats-grid {
+    grid-template-columns:
+      1fr;
+  }
+
+  .decor-toolbar
+    .menu-tabs {
+    width: 100%;
+
+    overflow-x: auto;
+  }
+
+  .decor-toolbar
+    .menu-tab {
+    min-width:
+      max-content;
+  }
+}
