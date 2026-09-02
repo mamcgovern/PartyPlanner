@@ -18,12 +18,142 @@ import { db } from "../services/firebase";
 
 const PARTY_ID = "halloween-25";
 
+/*
+ * Conversion bases:
+ *
+ * volume -> teaspoons
+ * weight -> ounces
+ */
+
+const unitDefinitions = {
+  tsp: {
+    group: "volume",
+    factor: 1,
+  },
+
+  tbsp: {
+    group: "volume",
+    factor: 3,
+  },
+
+  cup: {
+    group: "volume",
+    factor: 48,
+  },
+
+  "fl oz": {
+    group: "volume",
+    factor: 6,
+  },
+
+  mL: {
+    group: "volume",
+    factor: 0.202884,
+  },
+
+  L: {
+    group: "volume",
+    factor: 202.884,
+  },
+
+  oz: {
+    group: "weight",
+    factor: 1,
+  },
+
+  lb: {
+    group: "weight",
+    factor: 16,
+  },
+
+  g: {
+    group: "weight",
+    factor: 0.035274,
+  },
+
+  kg: {
+    group: "weight",
+    factor: 35.274,
+  },
+};
+
+const normalizeIngredientName = (
+  value,
+) => {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+};
+
 const getDetailDocumentId = (
   shoppingItemId,
 ) => {
   return encodeURIComponent(
     shoppingItemId,
   );
+};
+
+const roundAmount = (
+  value,
+) => {
+  return (
+    Math.round(
+      Number(value) * 100,
+    ) / 100
+  );
+};
+
+const chooseVolumeDisplay = (
+  teaspoons,
+) => {
+  if (teaspoons >= 48) {
+    return {
+      amount:
+        teaspoons / 48,
+      unit: "cup",
+    };
+  }
+
+  if (teaspoons >= 6) {
+    return {
+      amount:
+        teaspoons / 6,
+      unit: "fl oz",
+    };
+  }
+
+  if (teaspoons >= 3) {
+    return {
+      amount:
+        teaspoons / 3,
+      unit: "tbsp",
+    };
+  }
+
+  return {
+    amount:
+      teaspoons,
+    unit: "tsp",
+  };
+};
+
+const chooseWeightDisplay = (
+  ounces,
+) => {
+  if (ounces >= 16) {
+    return {
+      amount:
+        ounces / 16,
+      unit: "lb",
+    };
+  }
+
+  return {
+    amount:
+      ounces,
+    unit: "oz",
+  };
 };
 
 function Shopping() {
@@ -65,15 +195,15 @@ function Shopping() {
     const unsubscribe = onSnapshot(
       menuRef,
       (snapshot) => {
-        const data =
+        setMenuItems(
           snapshot.docs.map(
             (itemDoc) => ({
               id: itemDoc.id,
               ...itemDoc.data(),
             }),
-          );
+          ),
+        );
 
-        setMenuItems(data);
         setLoading(false);
       },
       (error) => {
@@ -91,7 +221,7 @@ function Shopping() {
 
   /*
    * ================================
-   * LOAD SHOPPING DETAILS
+   * SHOPPING DETAILS
    * ================================
    */
 
@@ -113,7 +243,9 @@ function Shopping() {
             const data =
               detailDoc.data();
 
-            if (!data.shoppingItemId) {
+            if (
+              !data.shoppingItemId
+            ) {
               return;
             }
 
@@ -122,6 +254,10 @@ function Shopping() {
             ] = {
               id: detailDoc.id,
               ...data,
+
+              alreadyOwned:
+                data.alreadyOwned ??
+                false,
             };
           },
         );
@@ -143,7 +279,7 @@ function Shopping() {
 
   /*
    * ================================
-   * LOAD CHECKED STATE
+   * CHECKED STATE
    * ================================
    */
 
@@ -180,7 +316,7 @@ function Shopping() {
 
   /*
    * ================================
-   * PURCHASED MENU ITEMS
+   * PURCHASED FOOD / DRINK ITEMS
    * ================================
    */
 
@@ -195,21 +331,19 @@ function Shopping() {
         .map((item) => ({
           id: `purchase__${item.id}`,
 
-          sourceId:
-            item.id,
-
           type:
             "Purchased",
 
           name:
             item.name,
 
-          amount:
-            item.purchaseQuantity ??
-            1,
-
-          unit:
-            item.purchaseUnit ?? "",
+          displayQuantity:
+            `${
+              item.purchaseQuantity ??
+              1
+            } ${
+              item.purchaseUnit ?? ""
+            }`.trim(),
 
           source:
             item.name,
@@ -228,7 +362,7 @@ function Shopping() {
 
   /*
    * ================================
-   * RECIPE INGREDIENTS
+   * COMBINE RECIPE INGREDIENTS
    * ================================
    */
 
@@ -262,19 +396,17 @@ function Shopping() {
             item.ingredients ?? []
           ).forEach(
             (ingredient) => {
-              const name =
+              const displayName =
                 ingredient.name?.trim();
 
-              if (!name) {
+              if (!displayName) {
                 return;
               }
 
-              const unit =
-                ingredient.unit
-                  ?.trim() ?? "";
-
-              const key = `${name
-                .toLowerCase()}__${unit.toLowerCase()}`;
+              const normalizedName =
+                normalizeIngredientName(
+                  displayName,
+                );
 
               const amount =
                 Number(
@@ -282,77 +414,181 @@ function Shopping() {
                 );
 
               const scaledAmount =
-                Number.isFinite(
-                  amount,
-                )
+                Number.isFinite(amount)
                   ? amount * scale
                   : null;
 
+              const unit =
+                ingredient.unit ?? "";
+
               if (
-                ingredientMap.has(
-                  key,
+                !ingredientMap.has(
+                  normalizedName,
                 )
               ) {
-                const existing =
-                  ingredientMap.get(
-                    key,
-                  );
-
-                if (
-                  existing.amount !==
-                    null &&
-                  scaledAmount !==
-                    null
-                ) {
-                  existing.amount +=
-                    scaledAmount;
-                }
-
-                if (
-                  !existing.sources.includes(
-                    item.name,
-                  )
-                ) {
-                  existing.sources.push(
-                    item.name,
-                  );
-                }
-              } else {
                 ingredientMap.set(
-                  key,
+                  normalizedName,
                   {
-                    id: `ingredient__${key}`,
+                    id: `ingredient__${normalizedName}`,
 
                     type:
                       "Ingredient",
 
-                    name,
+                    name:
+                      displayName,
 
-                    amount:
-                      scaledAmount,
+                    sources: [],
 
-                    unit,
+                    convertibleGroups: {
+                      volume: 0,
+                      weight: 0,
+                    },
 
-                    sources: [
-                      item.name,
-                    ],
-
-                    shoppingLink:
-                      "",
+                    standaloneUnits:
+                      {},
                   },
                 );
               }
+
+              const entry =
+                ingredientMap.get(
+                  normalizedName,
+                );
+
+              if (
+                !entry.sources.includes(
+                  item.name,
+                )
+              ) {
+                entry.sources.push(
+                  item.name,
+                );
+              }
+
+              if (
+                scaledAmount ===
+                null
+              ) {
+                return;
+              }
+
+              const definition =
+                unitDefinitions[
+                  unit
+                ];
+
+              if (definition) {
+                entry.convertibleGroups[
+                  definition.group
+                ] +=
+                  scaledAmount *
+                  definition.factor;
+
+                return;
+              }
+
+              const standaloneKey =
+                unit ||
+                "unspecified";
+
+              entry.standaloneUnits[
+                standaloneKey
+              ] =
+                (
+                  entry
+                    .standaloneUnits[
+                    standaloneKey
+                  ] ?? 0
+                ) +
+                scaledAmount;
             },
           );
         });
 
       return Array.from(
         ingredientMap.values(),
-      ).sort((a, b) =>
-        a.name.localeCompare(
-          b.name,
-        ),
-      );
+      )
+        .map((entry) => {
+          const parts = [];
+
+          const volumeTotal =
+            entry
+              .convertibleGroups
+              .volume;
+
+          const weightTotal =
+            entry
+              .convertibleGroups
+              .weight;
+
+          if (volumeTotal > 0) {
+            const volume =
+              chooseVolumeDisplay(
+                volumeTotal,
+              );
+
+            parts.push(
+              `${roundAmount(
+                volume.amount,
+              )} ${volume.unit}`,
+            );
+          }
+
+          if (weightTotal > 0) {
+            const weight =
+              chooseWeightDisplay(
+                weightTotal,
+              );
+
+            parts.push(
+              `${roundAmount(
+                weight.amount,
+              )} ${weight.unit}`,
+            );
+          }
+
+          Object.entries(
+            entry.standaloneUnits,
+          ).forEach(
+            ([unit, amount]) => {
+              parts.push(
+                `${roundAmount(
+                  amount,
+                )}${
+                  unit ===
+                  "unspecified"
+                    ? ""
+                    : ` ${unit}`
+                }`,
+              );
+            },
+          );
+
+          return {
+            id:
+              entry.id,
+
+            type:
+              entry.type,
+
+            name:
+              entry.name,
+
+            sources:
+              entry.sources,
+
+            displayQuantity:
+              parts.join(" + "),
+
+            shoppingLink:
+              "",
+          };
+        })
+        .sort((a, b) =>
+          a.name.localeCompare(
+            b.name,
+          ),
+        );
     }, [menuItems]);
 
   /*
@@ -380,6 +616,10 @@ function Shopping() {
         detail.estimatedPrice ??
         item.originalEstimatedPrice ??
         null,
+
+      alreadyOwned:
+        detail.alreadyOwned ??
+        false,
     };
   };
 
@@ -428,7 +668,8 @@ function Shopping() {
   const visibleItems =
     useMemo(() => {
       if (
-        activeTab === "Purchased"
+        activeTab ===
+        "Purchased"
       ) {
         return purchasedItemsWithDetails;
       }
@@ -438,6 +679,16 @@ function Shopping() {
         "Ingredients"
       ) {
         return recipeIngredientsWithDetails;
+      }
+
+      if (
+        activeTab ===
+        "Owned"
+      ) {
+        return allItems.filter(
+          (item) =>
+            item.alreadyOwned,
+        );
       }
 
       return allItems;
@@ -454,50 +705,89 @@ function Shopping() {
    * ================================
    */
 
-  const checkedCount =
-    allItems.filter((item) =>
-      checkedShoppingItems.includes(
-        item.id,
-      ),
+  const purchasedCount =
+    allItems.filter(
+      (item) =>
+        checkedShoppingItems.includes(
+          item.id,
+        ),
+    ).length;
+
+  const ownedCount =
+    allItems.filter(
+      (item) =>
+        item.alreadyOwned,
+    ).length;
+
+  const completedCount =
+    allItems.filter(
+      (item) =>
+        checkedShoppingItems.includes(
+          item.id,
+        ) ||
+        item.alreadyOwned,
     ).length;
 
   const remainingCount =
     allItems.length -
-    checkedCount;
+    completedCount;
 
   const progress =
     allItems.length === 0
       ? 0
       : Math.round(
-          (checkedCount /
+          (completedCount /
             allItems.length) *
             100,
         );
 
   const estimatedTotal =
-    allItems.reduce(
-      (total, item) =>
-        total +
-        Number(
-          item.estimatedPrice || 0,
-        ),
-      0,
-    );
+    allItems
+      .filter(
+        (item) =>
+          !item.alreadyOwned,
+      )
+      .reduce(
+        (total, item) =>
+          total +
+          Number(
+            item.estimatedPrice || 0,
+          ),
+        0,
+      );
 
   /*
    * ================================
-   * CHECKBOX
+   * PURCHASE / GATHER CHECKBOX
    * ================================
    */
 
   const toggleItem =
-    async (itemId) => {
+    async (item) => {
       const checked =
         checkedShoppingItems.includes(
-          itemId,
+          item.id,
         );
 
       try {
+        /*
+         * If marking the item as
+         * purchased, remove Already
+         * Owned first so one item does
+         * not have both statuses.
+         */
+
+        if (
+          !checked &&
+          item.alreadyOwned
+        ) {
+          await updateShoppingDetail(
+            item,
+            "alreadyOwned",
+            false,
+          );
+        }
+
         await setDoc(
           doc(
             db,
@@ -508,10 +798,10 @@ function Shopping() {
             checkedShoppingItems:
               checked
                 ? arrayRemove(
-                    itemId,
+                    item.id,
                   )
                 : arrayUnion(
-                    itemId,
+                    item.id,
                   ),
           },
           {
@@ -553,7 +843,7 @@ function Shopping() {
 
   /*
    * ================================
-   * EDIT SHOPPING DETAILS
+   * SHOPPING DETAILS
    * ================================
    */
 
@@ -620,35 +910,65 @@ function Shopping() {
 
   /*
    * ================================
-   * FORMATTING
+   * ALREADY OWNED
    * ================================
    */
 
-  const formatAmount = (
-    value,
-  ) => {
-    if (
-      value === null ||
-      value === undefined
-    ) {
-      return "";
-    }
+  const toggleAlreadyOwned =
+    async (item) => {
+      const nextOwned =
+        !item.alreadyOwned;
 
-    const number =
-      Number(value);
+      try {
+        /*
+         * If marking Already Owned,
+         * remove the purchased/gathered
+         * check so there is only one
+         * completion status.
+         */
 
-    if (
-      !Number.isFinite(number)
-    ) {
-      return value;
-    }
+        if (
+          nextOwned &&
+          checkedShoppingItems.includes(
+            item.id,
+          )
+        ) {
+          await setDoc(
+            doc(
+              db,
+              "parties",
+              PARTY_ID,
+            ),
+            {
+              checkedShoppingItems:
+                arrayRemove(
+                  item.id,
+                ),
+            },
+            {
+              merge: true,
+            },
+          );
+        }
 
-    return (
-      Math.round(
-        number * 100,
-      ) / 100
-    );
-  };
+        await updateShoppingDetail(
+          item,
+          "alreadyOwned",
+          nextOwned,
+        );
+      } catch (error) {
+        console.error(
+          "Error updating owned status:",
+          error,
+        );
+      }
+    };
+
+  /*
+   * ================================
+   * FORMATTING
+   * ================================
+   */
 
   const formatCurrency = (
     value,
@@ -664,12 +984,6 @@ function Shopping() {
     );
   };
 
-  /*
-   * ================================
-   * RENDER
-   * ================================
-   */
-
   return (
     <div className="page">
       <header className="page-header">
@@ -683,10 +997,11 @@ function Shopping() {
           </h1>
 
           <p>
-            Automatically generated
-            from your menu. Add the
-            store and estimated cost as
-            you plan your shopping.
+            Automatically generated from
+            your menu. Mark things as
+            purchased or already owned
+            so you know exactly what is
+            left to get.
           </p>
         </div>
       </header>
@@ -713,8 +1028,8 @@ function Shopping() {
           </div>
 
           <span>
-            {checkedCount} of{" "}
-            {allItems.length} gathered
+            {completedCount} of{" "}
+            {allItems.length} covered
           </span>
         </div>
 
@@ -728,23 +1043,21 @@ function Shopping() {
           </strong>
 
           <small>
-            things to get
+            things still needed
           </small>
         </div>
 
         <div className="shopping-stat-card">
           <span>
-            Recipe Ingredients
+            Already Owned
           </span>
 
           <strong>
-            {
-              recipeIngredients.length
-            }
+            {ownedCount}
           </strong>
 
           <small>
-            combined ingredients
+            already at home
           </small>
         </div>
 
@@ -760,12 +1073,12 @@ function Shopping() {
           </strong>
 
           <small>
-            shopping estimate
+            excluding owned items
           </small>
         </div>
       </section>
 
-      {/* TABS */}
+      {/* TOOLBAR */}
 
       <section className="shopping-toolbar">
         <div className="menu-tabs">
@@ -773,6 +1086,7 @@ function Shopping() {
             "All",
             "Purchased",
             "Ingredients",
+            "Owned",
           ].map((tab) => (
             <button
               type="button"
@@ -793,7 +1107,7 @@ function Shopping() {
           ))}
         </div>
 
-        {checkedCount > 0 && (
+        {purchasedCount > 0 && (
           <button
             type="button"
             className="text-button"
@@ -801,7 +1115,7 @@ function Shopping() {
               clearChecks
             }
           >
-            Reset Checklist
+            Reset Purchased
           </button>
         )}
       </section>
@@ -827,6 +1141,20 @@ function Shopping() {
             </span>
           </div>
         </div>
+      ) : visibleItems.length ===
+        0 ? (
+        <div className="empty-page-card">
+          <div className="menu-empty-content">
+            <strong>
+              Nothing here yet.
+            </strong>
+
+            <span>
+              No shopping items match
+              this filter.
+            </span>
+          </div>
+        </div>
       ) : (
         <section className="shopping-list-card">
           <div className="shopping-list-header">
@@ -836,7 +1164,7 @@ function Shopping() {
             <div>For</div>
             <div>Store</div>
             <div>Cost</div>
-            <div />
+            <div>Status</div>
           </div>
 
           {visibleItems.map(
@@ -846,12 +1174,25 @@ function Shopping() {
                   item.id,
                 );
 
+              let rowClass =
+                "shopping-row";
+
+              if (checked) {
+                rowClass +=
+                  " purchased";
+              }
+
+              if (
+                item.alreadyOwned
+              ) {
+                rowClass +=
+                  " already-owned";
+              }
+
               return (
                 <div
                   className={
-                    checked
-                      ? "shopping-row purchased"
-                      : "shopping-row"
+                    rowClass
                   }
                   key={item.id}
                 >
@@ -867,8 +1208,18 @@ function Shopping() {
                       }
                       onClick={() =>
                         toggleItem(
-                          item.id,
+                          item,
                         )
+                      }
+                      aria-label={
+                        checked
+                          ? "Mark as not purchased"
+                          : "Mark as purchased"
+                      }
+                      title={
+                        checked
+                          ? "Purchased"
+                          : "Mark purchased"
                       }
                     >
                       {checked
@@ -888,16 +1239,21 @@ function Shopping() {
                       <span className="shopping-category-pill">
                         {item.type}
                       </span>
+
+                      {item.alreadyOwned && (
+                        <span className="shopping-owned-pill">
+                          Owned
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {/* QUANTITY */}
 
                   <div className="shopping-secondary">
-                    {formatAmount(
-                      item.amount,
-                    )}{" "}
-                    {item.unit}
+                    {
+                      item.displayQuantity
+                    }
                   </div>
 
                   {/* SOURCE */}
@@ -921,6 +1277,9 @@ function Shopping() {
                         item.store ?? ""
                       }
                       placeholder="Store"
+                      disabled={
+                        item.alreadyOwned
+                      }
                       onChange={(
                         event,
                       ) =>
@@ -937,7 +1296,13 @@ function Shopping() {
                   {/* COST */}
 
                   <div>
-                    <div className="shopping-cost-input">
+                    <div
+                      className={
+                        item.alreadyOwned
+                          ? "shopping-cost-input disabled"
+                          : "shopping-cost-input"
+                      }
+                    >
                       <span>
                         $
                       </span>
@@ -951,6 +1316,9 @@ function Shopping() {
                           ""
                         }
                         placeholder="0.00"
+                        disabled={
+                          item.alreadyOwned
+                        }
                         onChange={(
                           event,
                         ) =>
@@ -965,20 +1333,39 @@ function Shopping() {
                     </div>
                   </div>
 
-                  {/* LINK */}
+                  {/* STATUS / ACTIONS */}
 
                   <div className="shopping-row-actions">
-                    {item.shoppingLink && (
-                      <a
-                        href={
-                          item.shoppingLink
-                        }
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Shop ↗
-                      </a>
-                    )}
+                    <button
+                      type="button"
+                      className={
+                        item.alreadyOwned
+                          ? "shopping-owned-button active"
+                          : "shopping-owned-button"
+                      }
+                      onClick={() =>
+                        toggleAlreadyOwned(
+                          item,
+                        )
+                      }
+                    >
+                      {item.alreadyOwned
+                        ? "Owned"
+                        : "Mark Owned"}
+                    </button>
+
+                    {item.shoppingLink &&
+                      !item.alreadyOwned && (
+                        <a
+                          href={
+                            item.shoppingLink
+                          }
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Shop ↗
+                        </a>
+                      )}
                   </div>
                 </div>
               );
