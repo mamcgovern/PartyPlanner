@@ -1,4 +1,4 @@
-name: Deploy Wedding Website
+name: Deploy Party Planning Website
 
 on:
   push:
