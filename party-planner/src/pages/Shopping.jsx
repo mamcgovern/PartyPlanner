@@ -12,6 +12,7 @@ import {
   onSnapshot,
   serverTimestamp,
   setDoc,
+  updateDoc,
 } from "firebase/firestore";
 
 import { db } from "../services/firebase";
@@ -163,6 +164,11 @@ function Shopping() {
   ] = useState([]);
 
   const [
+    decorations,
+    setDecorations,
+  ] = useState([]);
+
+  const [
     shoppingDetails,
     setShoppingDetails,
   ] = useState({});
@@ -172,11 +178,24 @@ function Shopping() {
     setCheckedShoppingItems,
   ] = useState([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  const [
+    menuLoading,
+    setMenuLoading,
+  ] = useState(true);
 
-  const [activeTab, setActiveTab] =
-    useState("All");
+  const [
+    decorationsLoading,
+    setDecorationsLoading,
+  ] = useState(true);
+
+  const [
+    activeTab,
+    setActiveTab,
+  ] = useState("All");
+
+  const loading =
+    menuLoading ||
+    decorationsLoading;
 
   /*
    * ================================
@@ -204,7 +223,7 @@ function Shopping() {
           ),
         );
 
-        setLoading(false);
+        setMenuLoading(false);
       },
       (error) => {
         console.error(
@@ -212,7 +231,55 @@ function Shopping() {
           error,
         );
 
-        setLoading(false);
+        setMenuLoading(false);
+      },
+    );
+
+    return unsubscribe;
+  }, []);
+
+  /*
+   * ================================
+   * LOAD DECORATIONS
+   * ================================
+   */
+
+  useEffect(() => {
+    const decorationsRef =
+      collection(
+        db,
+        "parties",
+        PARTY_ID,
+        "decorations",
+      );
+
+    const unsubscribe = onSnapshot(
+      decorationsRef,
+      (snapshot) => {
+        setDecorations(
+          snapshot.docs.map(
+            (decorationDoc) => ({
+              id:
+                decorationDoc.id,
+
+              ...decorationDoc.data(),
+            }),
+          ),
+        );
+
+        setDecorationsLoading(
+          false,
+        );
+      },
+      (error) => {
+        console.error(
+          "Error loading decorations for shopping:",
+          error,
+        );
+
+        setDecorationsLoading(
+          false,
+        );
       },
     );
 
@@ -253,6 +320,7 @@ function Shopping() {
               data.shoppingItemId
             ] = {
               id: detailDoc.id,
+
               ...data,
 
               alreadyOwned:
@@ -329,7 +397,11 @@ function Shopping() {
             "purchased",
         )
         .map((item) => ({
-          id: `purchase__${item.id}`,
+          id:
+            `purchase__${item.id}`,
+
+          sourceId:
+            item.id,
 
           type:
             "Purchased",
@@ -429,7 +501,8 @@ function Shopping() {
                 ingredientMap.set(
                   normalizedName,
                   {
-                    id: `ingredient__${normalizedName}`,
+                    id:
+                      `ingredient__${normalizedName}`,
 
                     type:
                       "Ingredient",
@@ -593,6 +666,59 @@ function Shopping() {
 
   /*
    * ================================
+   * DECORATION SHOPPING ITEMS
+   * ================================
+   */
+
+  const decorationItems =
+    useMemo(() => {
+      return decorations
+        .filter(
+          (item) =>
+            item.status ===
+            "Need to Buy",
+        )
+        .map((item) => ({
+          id:
+            `decoration__${item.id}`,
+
+          sourceId:
+            item.id,
+
+          type:
+            "Decoration",
+
+          name:
+            item.name,
+
+          displayQuantity:
+            `${item.quantity ?? 1}`,
+
+          source:
+            "Decorations",
+
+          originalStore:
+            item.store ?? "",
+
+          originalEstimatedPrice:
+            item.estimatedCost ??
+            null,
+
+          shoppingLink:
+            item.shoppingLink ?? "",
+
+          photoUrl:
+            item.photoUrl ?? "",
+        }))
+        .sort((a, b) =>
+          a.name.localeCompare(
+            b.name,
+          ),
+        );
+    }, [decorations]);
+
+  /*
+   * ================================
    * APPLY SHOPPING DETAILS
    * ================================
    */
@@ -647,6 +773,18 @@ function Shopping() {
       ],
     );
 
+  const decorationItemsWithDetails =
+    useMemo(
+      () =>
+        decorationItems.map(
+          applyDetails,
+        ),
+      [
+        decorationItems,
+        shoppingDetails,
+      ],
+    );
+
   /*
    * ================================
    * MASTER LIST
@@ -658,10 +796,12 @@ function Shopping() {
       () => [
         ...purchasedItemsWithDetails,
         ...recipeIngredientsWithDetails,
+        ...decorationItemsWithDetails,
       ],
       [
         purchasedItemsWithDetails,
         recipeIngredientsWithDetails,
+        decorationItemsWithDetails,
       ],
     );
 
@@ -683,6 +823,13 @@ function Shopping() {
 
       if (
         activeTab ===
+        "Decorations"
+      ) {
+        return decorationItemsWithDetails;
+      }
+
+      if (
+        activeTab ===
         "Owned"
       ) {
         return allItems.filter(
@@ -697,6 +844,7 @@ function Shopping() {
       allItems,
       purchasedItemsWithDetails,
       recipeIngredientsWithDetails,
+      decorationItemsWithDetails,
     ]);
 
   /*
@@ -745,7 +893,10 @@ function Shopping() {
     allItems
       .filter(
         (item) =>
-          !item.alreadyOwned,
+          !item.alreadyOwned &&
+          !checkedShoppingItems.includes(
+            item.id,
+          ),
       )
       .reduce(
         (total, item) =>
@@ -755,6 +906,116 @@ function Shopping() {
           ),
         0,
       );
+
+  /*
+   * ================================
+   * SHOPPING DETAILS
+   * ================================
+   */
+
+  const updateShoppingDetail =
+    async (
+      item,
+      field,
+      value,
+    ) => {
+      const existing =
+        shoppingDetails[
+          item.id
+        ];
+
+      const detailId =
+        existing?.id ??
+        getDetailDocumentId(
+          item.id,
+        );
+
+      let parsedValue =
+        value;
+
+      if (
+        field ===
+        "estimatedPrice"
+      ) {
+        parsedValue =
+          value === ""
+            ? null
+            : Number(value);
+      }
+
+      try {
+        await setDoc(
+          doc(
+            db,
+            "parties",
+            PARTY_ID,
+            "shoppingDetails",
+            detailId,
+          ),
+          {
+            shoppingItemId:
+              item.id,
+
+            [field]:
+              parsedValue,
+
+            updatedAt:
+              serverTimestamp(),
+          },
+          {
+            merge: true,
+          },
+        );
+      } catch (error) {
+        console.error(
+          "Error updating shopping details:",
+          error,
+        );
+      }
+    };
+
+  /*
+   * ================================
+   * MARK DECORATION PURCHASED
+   * ================================
+   */
+
+  const markDecorationPurchased =
+    async (item) => {
+      if (
+        item.type !==
+          "Decoration" ||
+        !item.sourceId
+      ) {
+        return;
+      }
+
+      try {
+        await updateDoc(
+          doc(
+            db,
+            "parties",
+            PARTY_ID,
+            "decorations",
+            item.sourceId,
+          ),
+          {
+            status:
+              "Purchased",
+
+            updatedAt:
+              serverTimestamp(),
+          },
+        );
+      } catch (error) {
+        console.error(
+          "Error marking decoration as purchased:",
+          error,
+        );
+
+        throw error;
+      }
+    };
 
   /*
    * ================================
@@ -770,6 +1031,30 @@ function Shopping() {
         );
 
       try {
+        /*
+         * Decorations use the
+         * Decorations collection as
+         * their source of truth.
+         *
+         * Checking one here changes
+         * its decoration status to
+         * Purchased, which causes it
+         * to disappear from this list.
+         */
+
+        if (
+          item.type ===
+          "Decoration"
+        ) {
+          if (!checked) {
+            await markDecorationPurchased(
+              item,
+            );
+          }
+
+          return;
+        }
+
         /*
          * If marking the item as
          * purchased, remove Already
@@ -836,73 +1121,6 @@ function Shopping() {
       } catch (error) {
         console.error(
           "Error resetting shopping list:",
-          error,
-        );
-      }
-    };
-
-  /*
-   * ================================
-   * SHOPPING DETAILS
-   * ================================
-   */
-
-  const updateShoppingDetail =
-    async (
-      item,
-      field,
-      value,
-    ) => {
-      const existing =
-        shoppingDetails[
-          item.id
-        ];
-
-      const detailId =
-        existing?.id ??
-        getDetailDocumentId(
-          item.id,
-        );
-
-      let parsedValue =
-        value;
-
-      if (
-        field ===
-        "estimatedPrice"
-      ) {
-        parsedValue =
-          value === ""
-            ? null
-            : Number(value);
-      }
-
-      try {
-        await setDoc(
-          doc(
-            db,
-            "parties",
-            PARTY_ID,
-            "shoppingDetails",
-            detailId,
-          ),
-          {
-            shoppingItemId:
-              item.id,
-
-            [field]:
-              parsedValue,
-
-            updatedAt:
-              serverTimestamp(),
-          },
-          {
-            merge: true,
-          },
-        );
-      } catch (error) {
-        console.error(
-          "Error updating shopping details:",
           error,
         );
       }
@@ -984,6 +1202,12 @@ function Shopping() {
     );
   };
 
+  /*
+   * ================================
+   * RENDER
+   * ================================
+   */
+
   return (
     <div className="page">
       <header className="page-header">
@@ -998,10 +1222,10 @@ function Shopping() {
 
           <p>
             Automatically generated from
-            your menu. Mark things as
-            purchased or already owned
-            so you know exactly what is
-            left to get.
+            your menu and decorations.
+            Mark things as purchased or
+            already owned so you know
+            exactly what is left to get.
           </p>
         </div>
       </header>
@@ -1022,7 +1246,8 @@ function Shopping() {
             <div
               className="shopping-page-progress-fill"
               style={{
-                width: `${progress}%`,
+                width:
+                  `${progress}%`,
               }}
             />
           </div>
@@ -1063,7 +1288,7 @@ function Shopping() {
 
         <div className="shopping-stat-card">
           <span>
-            Estimated Total
+            Estimated Remaining
           </span>
 
           <strong>
@@ -1073,7 +1298,8 @@ function Shopping() {
           </strong>
 
           <small>
-            excluding owned items
+            excluding owned and
+            purchased items
           </small>
         </div>
       </section>
@@ -1086,6 +1312,7 @@ function Shopping() {
             "All",
             "Purchased",
             "Ingredients",
+            "Decorations",
             "Owned",
           ].map((tab) => (
             <button
@@ -1135,9 +1362,11 @@ function Shopping() {
             </strong>
 
             <span>
-              Purchased menu items and
-              recipe ingredients will
-              automatically appear here.
+              Purchased menu items,
+              recipe ingredients, and
+              decorations marked Need to
+              Buy will automatically
+              appear here.
             </span>
           </div>
         </div>
@@ -1212,14 +1441,20 @@ function Shopping() {
                         )
                       }
                       aria-label={
-                        checked
-                          ? "Mark as not purchased"
-                          : "Mark as purchased"
+                        item.type ===
+                        "Decoration"
+                          ? "Mark decoration as purchased"
+                          : checked
+                            ? "Mark as not purchased"
+                            : "Mark as purchased"
                       }
                       title={
-                        checked
-                          ? "Purchased"
-                          : "Mark purchased"
+                        item.type ===
+                        "Decoration"
+                          ? "Mark purchased"
+                          : checked
+                            ? "Purchased"
+                            : "Mark purchased"
                       }
                     >
                       {checked
