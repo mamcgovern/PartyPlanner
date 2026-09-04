@@ -83,6 +83,9 @@ const getDefaultFormData = () => ({
   estimatedPrice: "",
   shoppingLink: "",
 
+  imageUrl: "",
+  sourceLink: "",
+
   notes: "",
 });
 
@@ -141,6 +144,17 @@ const normalizeMenuItem = (item) => {
     shoppingLink:
       item.shoppingLink ??
       item.link ??
+      "",
+
+    imageUrl:
+      item.imageUrl ??
+      item.imageURL ??
+      item.photoUrl ??
+      "",
+
+    sourceLink:
+      item.sourceLink ??
+      item.recipeLink ??
       "",
 
     notes:
@@ -596,6 +610,12 @@ function FoodDrinks() {
             formData.plannedServings,
           ) || 0,
 
+        imageUrl:
+          formData.imageUrl.trim(),
+
+        sourceLink:
+          formData.sourceLink.trim(),
+
         notes:
           formData.notes.trim(),
 
@@ -786,6 +806,12 @@ function FoodDrinks() {
 
       shoppingLink:
         item.shoppingLink ?? "",
+
+      imageUrl:
+        item.imageUrl ?? "",
+
+      sourceLink:
+        item.sourceLink ?? "",
 
       notes:
         item.notes ?? "",
@@ -1022,6 +1048,17 @@ function FoodDrinks() {
                   className="menu-item-card"
                   key={item.id}
                 >
+                  {item.imageUrl && (
+                    <div className="menu-item-image-wrap">
+                      <img
+                        className="menu-item-image"
+                        src={item.imageUrl}
+                        alt={item.name}
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
+
                   <div className="menu-item-top">
                     <div>
                       <span className="menu-type">
@@ -1181,6 +1218,20 @@ function FoodDrinks() {
                   )}
 
                   <div className="menu-card-actions">
+                    {item.sourceLink && (
+                      <a
+                        href={
+                          item.sourceLink
+                        }
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {isRecipe
+                          ? "Recipe ↗"
+                          : "View Item ↗"}
+                      </a>
+                    )}
+
                     {item.shoppingLink && (
                       <a
                         href={
@@ -1339,6 +1390,56 @@ function FoodDrinks() {
                     ),
                   )}
                 </select>
+              </label>
+
+              <label className="full-field">
+                Image URL
+
+                <input
+                  type="url"
+                  name="imageUrl"
+                  value={
+                    formData.imageUrl
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="https://..."
+                />
+              </label>
+
+              {formData.imageUrl && (
+                <div className="menu-form-image-preview full-field">
+                  <span className="card-eyebrow">
+                    Image Preview
+                  </span>
+
+                  <img
+                    src={
+                      formData.imageUrl
+                    }
+                    alt="Menu item preview"
+                  />
+                </div>
+              )}
+
+              <label className="full-field">
+                {formData.fulfillmentType ===
+                "recipe"
+                  ? "Recipe Link"
+                  : "Food / Drink Link"}
+
+                <input
+                  type="url"
+                  name="sourceLink"
+                  value={
+                    formData.sourceLink
+                  }
+                  onChange={
+                    handleChange
+                  }
+                  placeholder="https://..."
+                />
               </label>
 
               <div className="fulfillment-section">
