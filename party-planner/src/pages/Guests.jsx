@@ -21,6 +21,7 @@ const PARTY_ID = "halloween-25";
 
 const rsvpOptions = [
     "No Response",
+    "Invited",
     "Attending",
     "Maybe",
     "Declined",
@@ -186,6 +187,32 @@ function Guests() {
             );
         }, [guests]);
 
+    const invitedStatusCount =
+        useMemo(() => {
+            return guests.reduce(
+                (total, guest) => {
+                    let count = 0;
+
+                    if (
+                        guest.rsvp === "Invited"
+                    ) {
+                        count += 1;
+                    }
+
+                    if (
+                        guest.plusOne?.trim() &&
+                        guest.plusOneRsvp ===
+                        "Invited"
+                    ) {
+                        count += 1;
+                    }
+
+                    return total + count;
+                },
+                0,
+            );
+        }, [guests]);
+
     const attendingCount =
         useMemo(() => {
             return guests.reduce(
@@ -275,7 +302,8 @@ function Guests() {
                     if (
                         !guest.rsvp ||
                         guest.rsvp ===
-                        "No Response"
+                        "No Response" ||
+                        guest.rsvp === "Invited"
                     ) {
                         count += 1;
                     }
@@ -687,6 +715,9 @@ function Guests() {
         status,
     ) => {
         switch (status) {
+            case "Invited":
+                return "guest-status invited";
+
             case "Attending":
                 return "guest-status attending";
 
@@ -735,13 +766,13 @@ function Guests() {
             </header>
 
             {/* =========================
-          SUMMARY
-      ========================== */}
+    SUMMARY
+========================== */}
 
             <section className="guest-stats-grid">
                 <div className="guest-stat-card">
                     <span>
-                        Invited
+                        Guest List
                     </span>
 
                     <strong>
@@ -750,6 +781,20 @@ function Guests() {
 
                     <small>
                         including plus ones
+                    </small>
+                </div>
+
+                <div className="guest-stat-card invited">
+                    <span>
+                        Invited
+                    </span>
+
+                    <strong>
+                        {invitedStatusCount}
+                    </strong>
+
+                    <small>
+                        invitations sent
                     </small>
                 </div>
 
@@ -768,7 +813,9 @@ function Guests() {
                 </div>
 
                 <div className="guest-stat-card">
-                    <span>Maybe</span>
+                    <span>
+                        Maybe
+                    </span>
 
                     <strong>
                         {maybeCount}
@@ -868,6 +915,7 @@ function Guests() {
                 <div className="guest-filter-row">
                     {[
                         "All",
+                        "Invited",
                         "Attending",
                         "Maybe",
                         "No Response",

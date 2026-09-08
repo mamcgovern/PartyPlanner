@@ -5,7 +5,7 @@
 .guest-stats-grid {
   display: grid;
   grid-template-columns:
-    repeat(5, minmax(0, 1fr));
+    repeat(6, minmax(0, 1fr));
   gap: 14px;
 
   margin-bottom: 22px;
@@ -61,11 +61,9 @@
   padding: 20px;
 
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       var(--green-light),
-      var(--surface)
-    );
+      var(--surface));
 
   border: 1px solid var(--border);
   border-radius: var(--radius-medium);
@@ -217,11 +215,7 @@
 .guest-row {
   display: grid;
   grid-template-columns:
-    minmax(190px, 1.4fr)
-    minmax(120px, 0.8fr)
-    minmax(180px, 1fr)
-    minmax(180px, 1fr)
-    minmax(120px, 0.7fr);
+    minmax(190px, 1.4fr) minmax(120px, 0.8fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(120px, 0.7fr);
 
   gap: 14px;
   align-items: center;
@@ -253,13 +247,13 @@
   border-bottom: none;
 }
 
-.guest-row > div:nth-child(2) {
+.guest-row>div:nth-child(2) {
   display: grid;
   grid-template-rows: 18px auto;
   gap: 6px;
 }
 
-.guest-row > div:nth-child(2)::before {
+.guest-row>div:nth-child(2)::before {
   content: "";
   display: block;
   min-height: 18px;
@@ -273,7 +267,7 @@
   min-width: 0;
 }
 
-.guest-name-cell > div:last-child {
+.guest-name-cell>div:last-child {
   min-width: 0;
 }
 
@@ -453,9 +447,7 @@
   font-size: 0.65rem;
 
   border-radius:
-    0 0
-    var(--radius-large)
-    var(--radius-large);
+    0 0 var(--radius-large) var(--radius-large);
 }
 
 /* ================================
@@ -536,11 +528,7 @@
   .guest-list-header,
   .guest-row {
     grid-template-columns:
-      minmax(170px, 1.2fr)
-      minmax(110px, 0.75fr)
-      minmax(160px, 1fr)
-      minmax(150px, 0.9fr)
-      minmax(100px, 0.6fr);
+      minmax(170px, 1.2fr) minmax(110px, 0.75fr) minmax(160px, 1fr) minmax(150px, 0.9fr) minmax(100px, 0.6fr);
   }
 }
 
@@ -712,6 +700,17 @@
   border-top: 1px solid var(--border);
 }
 
+.guest-status.invited {
+  background: #eee6f7;
+  color: #765493;
+  border: 1px solid #d8c6e8;
+}
+
+.guest-stat-card.invited {
+  background: #f5f0fa;
+  border-color: #dfd0ec;
+}
+
 @keyframes modal-pop-in {
   from {
     opacity: 0;
@@ -738,10 +737,7 @@
     padding: 20px;
 
     border-radius:
-      var(--radius-large)
-      var(--radius-large)
-      16px
-      16px;
+      var(--radius-large) var(--radius-large) 16px 16px;
   }
 
   .modal-actions {
