@@ -29,8 +29,7 @@
   --green-light: #e1e8df;
 
   --shadow:
-    0 12px 30px
-    rgba(70, 55, 43, 0.06);
+    0 12px 30px rgba(70, 55, 43, 0.06);
 
   --radius-small: 10px;
   --radius-medium: 16px;
@@ -113,12 +112,10 @@ button {
   overflow-y: auto;
 
   background:
-    linear-gradient(
-      180deg,
+    linear-gradient(180deg,
       #292523 0%,
       #342822 60%,
-      #422a20 100%
-    );
+      #422a20 100%);
 
   color: white;
 }
@@ -170,23 +167,18 @@ button {
     9px 11px;
 
   background:
-    rgba(
+    rgba(255,
       255,
       255,
-      255,
-      0.05
-    );
+      0.05);
 
   color: #ddcec5;
 
   border:
-    1px solid
-    rgba(
+    1px solid rgba(255,
       255,
       255,
-      255,
-      0.12
-    );
+      0.12);
 
   border-radius: 10px;
 
@@ -255,12 +247,10 @@ button {
 
 .sidebar-link:hover {
   background:
-    rgba(
+    rgba(255,
       255,
       255,
-      255,
-      0.06
-    );
+      0.06);
 
   color: white;
 }
@@ -311,12 +301,10 @@ button {
     13px 0 9px;
 
   background:
-    rgba(
+    rgba(255,
       255,
       255,
-      255,
-      0.1
-    );
+      0.1);
 }
 
 /* ================================
@@ -355,11 +343,9 @@ button {
     serif;
 
   font-size:
-    clamp(
-      2rem,
+    clamp(2rem,
       3vw,
-      2.8rem
-    );
+      2.8rem);
 
   line-height: 1.1;
 }
@@ -443,8 +429,7 @@ button {
     var(--text);
 
   border:
-    1px solid
-    var(--border);
+    1px solid var(--border);
 
   border-radius: 10px;
 
@@ -542,8 +527,7 @@ button {
     var(--text-soft);
 
   border:
-    1px dashed
-    #d8cdc5;
+    1px dashed #d8cdc5;
 
   border-radius:
     var(--radius-large);
@@ -572,12 +556,10 @@ button {
   overflow-y: auto;
 
   background:
-    rgba(
-      32,
+    rgba(32,
       27,
       24,
-      0.58
-    );
+      0.58);
 
   backdrop-filter:
     blur(3px);
@@ -585,15 +567,11 @@ button {
 
 .modal-card {
   width:
-    min(
-      700px,
-      100%
-    );
+    min(700px,
+      100%);
 
   max-height:
-    calc(
-      100vh - 48px
-    );
+    calc(100vh - 48px);
 
   overflow-y: auto;
 
@@ -603,20 +581,16 @@ button {
     var(--surface);
 
   border:
-    1px solid
-    var(--border);
+    1px solid var(--border);
 
   border-radius:
     var(--radius-large);
 
   box-shadow:
-    0 24px 70px
-    rgba(
-      40,
+    0 24px 70px rgba(40,
       30,
       25,
-      0.2
-    );
+      0.2);
 }
 
 .modal-header {
@@ -664,8 +638,7 @@ button {
     var(--text-soft);
 
   border:
-    1px solid
-    var(--border);
+    1px solid var(--border);
 
   border-radius: 50%;
 
@@ -696,12 +669,56 @@ button {
 }
 
 /* ================================
+   SIDEBAR LOGOUT
+================================ */
+
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  width: 100%;
+  margin-top: 16px;
+  padding: 10px 12px;
+
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbbdb6;
+
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: left;
+
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.sidebar-logout .nav-icon {
+  width: 18px;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.sidebar-logout:hover {
+  background: rgba(189, 100, 45, 0.18);
+  color: #f4dfd0;
+  border-color: rgba(189, 100, 45, 0.35);
+}
+
+.sidebar-logout:active {
+  background: rgba(189, 100, 45, 0.25);
+}
+
+/* ================================
    RESPONSIVE APP SHELL
 ================================ */
 
-@media (
-  max-width: 800px
-) {
+@media (max-width: 800px) {
   .sidebar {
     position: relative;
 
@@ -713,10 +730,8 @@ button {
     display: grid;
 
     grid-template-columns:
-      repeat(
-        2,
-        minmax(0, 1fr)
-      );
+      repeat(2,
+        minmax(0, 1fr));
   }
 
   .sidebar-section {
@@ -754,17 +769,13 @@ button {
 
   .modal-card {
     max-height:
-      calc(
-        100vh - 30px
-      );
+      calc(100vh - 30px);
 
     padding: 20px;
   }
 }
 
-@media (
-  max-width: 600px
-) {
+@media (max-width: 600px) {
   .sidebar-nav {
     grid-template-columns:
       1fr;

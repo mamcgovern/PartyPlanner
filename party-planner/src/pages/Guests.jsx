@@ -9,6 +9,7 @@ import {
     collection,
     deleteDoc,
     doc,
+    getDoc,
     onSnapshot,
     serverTimestamp,
     setDoc,
@@ -37,6 +38,12 @@ const getDefaultFormData = () => ({
     foodNotes: "",
     notes: "",
 });
+
+const normalizeName = (name) =>
+    name
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
 
 function Guests() {
     const [guests, setGuests] =
@@ -482,6 +489,15 @@ function Guests() {
             try {
                 setSaving(true);
 
+                let guestId =
+                    editingGuestId;
+
+                /*
+                 * ============================
+                 * SAVE PRIVATE GUEST RECORD
+                 * ============================
+                 */
+
                 if (editingGuestId) {
                     await updateDoc(
                         doc(
@@ -494,26 +510,61 @@ function Guests() {
                         guestData,
                     );
                 } else {
-                    await addDoc(
-                        collection(
-                            db,
-                            "parties",
-                            PARTY_ID,
-                            "guests",
-                        ),
-                        {
-                            ...guestData,
+                    const newGuest =
+                        await addDoc(
+                            collection(
+                                db,
+                                "parties",
+                                PARTY_ID,
+                                "guests",
+                            ),
+                            {
+                                ...guestData,
 
-                            createdAt:
-                                serverTimestamp(),
-                        },
-                    );
+                                createdAt:
+                                    serverTimestamp(),
+                            },
+                        );
+
+                    guestId = newGuest.id;
                 }
 
                 /*
-                 * CLOSE THE MODAL ONLY
-                 * AFTER FIRESTORE SAVES
-                 * SUCCESSFULLY.
+                 * ============================
+                 * SAVE PUBLIC RSVP LOOKUP
+                 *
+                 * This document contains ONLY
+                 * information that the public
+                 * RSVP page needs.
+                 * ============================
+                 */
+
+                await setDoc(
+                    doc(
+                        db,
+                        "parties",
+                        PARTY_ID,
+                        "rsvpLookup",
+                        guestId,
+                    ),
+                    {
+                        name,
+
+                        nameLower:
+                            normalizeName(name),
+
+                        plusOne,
+
+                        invited: true,
+
+                        updatedAt:
+                            serverTimestamp(),
+                    },
+                );
+
+                /*
+                 * CLOSE MODAL ONLY AFTER BOTH
+                 * FIRESTORE SAVES SUCCEED.
                  */
 
                 setShowForm(false);
@@ -580,12 +631,30 @@ function Guests() {
     const handleDelete =
         async (guestId) => {
             try {
+                /*
+                 * Delete private guest record
+                 */
+
                 await deleteDoc(
                     doc(
                         db,
                         "parties",
                         PARTY_ID,
                         "guests",
+                        guestId,
+                    ),
+                );
+
+                /*
+                 * Delete public RSVP lookup
+                 */
+
+                await deleteDoc(
+                    doc(
+                        db,
+                        "parties",
+                        PARTY_ID,
+                        "rsvpLookup",
                         guestId,
                     ),
                 );
@@ -603,63 +672,59 @@ function Guests() {
      * ================================
      */
 
-    const updateGuestRsvp =
-        async (
-            guestId,
-            rsvp,
-        ) => {
-            try {
-                await updateDoc(
-                    doc(
-                        db,
-                        "parties",
-                        PARTY_ID,
-                        "guests",
-                        guestId,
-                    ),
-                    {
-                        rsvp,
+    const updateGuestRsvp = async (
+        guestId,
+        rsvp,
+    ) => {
+        try {
+            await updateDoc(
+                doc(
+                    db,
+                    "parties",
+                    PARTY_ID,
+                    "guests",
+                    guestId,
+                ),
+                {
+                    rsvp,
+                    updatedAt:
+                        serverTimestamp(),
+                },
+            );
+        } catch (error) {
+            console.error(
+                "Error updating guest RSVP:",
+                error,
+            );
+        }
+    };
 
-                        updatedAt:
-                            serverTimestamp(),
-                    },
-                );
-            } catch (error) {
-                console.error(
-                    "Error updating RSVP:",
-                    error,
-                );
-            }
-        };
-
-    const updatePlusOneRsvp =
-        async (
-            guestId,
-            plusOneRsvp,
-        ) => {
-            try {
-                await updateDoc(
-                    doc(
-                        db,
-                        "parties",
-                        PARTY_ID,
-                        "guests",
-                        guestId,
-                    ),
-                    {
-                        plusOneRsvp,
-
-                        updatedAt:
-                            serverTimestamp(),
-                    },
-                );
-            } catch (error) {
-                console.error(
-                    "Error updating plus-one RSVP:",
-                    error,
-                );
-            }
-        };
+    const updatePlusOneRsvp = async (
+        guestId,
+        plusOneRsvp,
+    ) => {
+        try {
+            await updateDoc(
+                doc(
+                    db,
+                    "parties",
+                    PARTY_ID,
+                    "guests",
+                    guestId,
+                ),
+                {
+                    plusOneRsvp,
+                    updatedAt:
+                        serverTimestamp(),
+                },
+            );
+        } catch (error) {
+            console.error(
+                "Error updating plus-one RSVP:",
+                error,
+            );
+        }
+    };
 
     /*
      * ================================
@@ -766,8 +831,8 @@ function Guests() {
             </header>
 
             {/* =========================
-    SUMMARY
-========================== */}
+                SUMMARY
+            ========================== */}
 
             <section className="guest-stats-grid">
                 <div className="guest-stat-card">
@@ -856,8 +921,8 @@ function Guests() {
             </section>
 
             {/* =========================
-          EXPECTED ATTENDANCE
-      ========================== */}
+                EXPECTED ATTENDANCE
+            ========================== */}
 
             <section className="expected-attendance-card">
                 <div>
@@ -893,8 +958,8 @@ function Guests() {
             </section>
 
             {/* =========================
-          SEARCH / FILTER
-      ========================== */}
+                SEARCH / FILTER
+            ========================== */}
 
             <section className="guest-toolbar">
                 <div className="guest-search">
@@ -943,8 +1008,8 @@ function Guests() {
             </section>
 
             {/* =========================
-          GUEST LIST
-      ========================== */}
+                GUEST LIST
+            ========================== */}
 
             {loading ? (
                 <div className="empty-page-card">
@@ -1106,18 +1171,13 @@ function Guests() {
                                                 )}
                                             </select>
                                         </>
-                                    ) : (
-                                        <span className="guest-secondary-text">
-                                            —
-                                        </span>
-                                    )}
+                                    ) : null}
                                 </div>
 
                                 {/* FOOD NOTES */}
 
                                 <div className="guest-secondary-text">
-                                    {guest.foodNotes ||
-                                        "—"}
+                                    {guest.foodNotes || null}
                                 </div>
 
                                 {/* ACTIONS */}
@@ -1162,8 +1222,8 @@ function Guests() {
             )}
 
             {/* =========================
-          ADD / EDIT MODAL
-      ========================== */}
+                ADD / EDIT MODAL
+            ========================== */}
 
             {showForm && (
                 <div
@@ -1246,14 +1306,20 @@ function Guests() {
                                     value={formData.rsvp}
                                     onChange={handleChange}
                                 >
-                                    {rsvpOptions.map((option) => (
-                                        <option
-                                            value={option}
-                                            key={option}
-                                        >
-                                            {option}
-                                        </option>
-                                    ))}
+                                    {rsvpOptions.map(
+                                        (option) => (
+                                            <option
+                                                value={
+                                                    option
+                                                }
+                                                key={
+                                                    option
+                                                }
+                                            >
+                                                {option}
+                                            </option>
+                                        ),
+                                    )}
                                 </select>
                             </label>
 
@@ -1262,18 +1328,30 @@ function Guests() {
 
                                 <select
                                     name="plusOneRsvp"
-                                    value={formData.plusOneRsvp}
-                                    onChange={handleChange}
-                                    disabled={!formData.plusOne.trim()}
+                                    value={
+                                        formData.plusOneRsvp
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
+                                    disabled={
+                                        !formData.plusOne.trim()
+                                    }
                                 >
-                                    {rsvpOptions.map((option) => (
-                                        <option
-                                            value={option}
-                                            key={option}
-                                        >
-                                            {option}
-                                        </option>
-                                    ))}
+                                    {rsvpOptions.map(
+                                        (option) => (
+                                            <option
+                                                value={
+                                                    option
+                                                }
+                                                key={
+                                                    option
+                                                }
+                                            >
+                                                {option}
+                                            </option>
+                                        ),
+                                    )}
                                 </select>
                             </label>
 
@@ -1282,8 +1360,12 @@ function Guests() {
 
                                 <textarea
                                     name="foodNotes"
-                                    value={formData.foodNotes}
-                                    onChange={handleChange}
+                                    value={
+                                        formData.foodNotes
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                     rows="3"
                                     placeholder="Allergies, vegetarian, dietary needs..."
                                 />
@@ -1294,8 +1376,12 @@ function Guests() {
 
                                 <textarea
                                     name="notes"
-                                    value={formData.notes}
-                                    onChange={handleChange}
+                                    value={
+                                        formData.notes
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                     rows="3"
                                     placeholder="Anything else you want to remember..."
                                 />
@@ -1305,8 +1391,12 @@ function Guests() {
                                 <button
                                     type="button"
                                     className="secondary-button"
-                                    onClick={resetForm}
-                                    disabled={saving}
+                                    onClick={
+                                        resetForm
+                                    }
+                                    disabled={
+                                        saving
+                                    }
                                 >
                                     Cancel
                                 </button>
@@ -1314,7 +1404,9 @@ function Guests() {
                                 <button
                                     type="submit"
                                     className="primary-button"
-                                    disabled={saving}
+                                    disabled={
+                                        saving
+                                    }
                                 >
                                     {saving
                                         ? "Saving..."
