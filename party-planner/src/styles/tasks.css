@@ -430,9 +430,11 @@
 
 .task-actions {
   display: flex;
-  justify-content:
-    flex-end;
+  justify-content: flex-end;
+  align-items: center;
   gap: 3px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .task-actions button {
@@ -595,6 +597,63 @@
 }
 
 /* ================================
+   ASSIGNEE
+================================ */
+
+.task-assignee {
+  width: 100%;
+  padding: 7px 9px;
+
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+
+  font-family: inherit;
+  font-size: 0.63rem;
+  font-weight: 700;
+}
+
+/* Mattie */
+
+.task-assignee.mattie {
+  background: #f9e4ed;
+  color: #9a5c76;
+  border:
+    1px solid
+    #ebc8d7;
+}
+
+/* Nick */
+
+.task-assignee.nick {
+  background: #e5f1e3;
+  color: #5f795d;
+  border:
+    1px solid
+    #c9dec6;
+}
+
+/* Both */
+
+.task-assignee.both {
+  background: #eee6f7;
+  color: #765493;
+  border:
+    1px solid
+    #d8c6e8;
+}
+
+/* Unassigned */
+
+.task-assignee.unassigned {
+  background: #eeeae6;
+  color: #706963;
+  border:
+    1px solid
+    #dfd8d2;
+}
+
+/* ================================
    RESPONSIVE
 ================================ */
 
@@ -641,7 +700,7 @@
   .task-check-cell {
     grid-column: 1;
     grid-row:
-      1 / span 5;
+      1 / span 6;
 
     align-items:
       flex-start;

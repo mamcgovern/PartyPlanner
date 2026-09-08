@@ -547,13 +547,13 @@ function Tasks() {
         task.status ??
         "Not Started",
 
-      assignee:
-        task.assignee ??
-        "Unassigned",
-
       priority:
         task.priority ??
         "Medium",
+
+      assignee:
+        task.assignee ??
+        "Unassigned",
 
       notes:
         task.notes ?? "",
@@ -627,6 +627,41 @@ function Tasks() {
       } catch (error) {
         console.error(
           "Error updating task:",
+          error,
+        );
+      }
+    };
+
+  /*
+   * ================================
+   * QUICK ASSIGNEE
+   * ================================
+   */
+
+  const updateAssignee =
+    async (
+      task,
+      assignee,
+    ) => {
+      try {
+        await updateDoc(
+          doc(
+            db,
+            "parties",
+            PARTY_ID,
+            "tasks",
+            task.id,
+          ),
+          {
+            assignee,
+
+            updatedAt:
+              serverTimestamp(),
+          },
+        );
+      } catch (error) {
+        console.error(
+          "Error updating task assignee:",
           error,
         );
       }
@@ -828,15 +863,13 @@ function Tasks() {
       ) : (
         <section className="task-list-card">
           <div className="task-list-header">
-            <div className="task-list-header">
-              <div />
-              <div>Task</div>
-              <div>Due</div>
-              <div>Assignee</div>
-              <div>Priority</div>
-              <div>Status</div>
-              <div />
-            </div>
+            <div />
+            <div>Task</div>
+            <div>Due</div>
+            <div>Assignee</div>
+            <div>Priority</div>
+            <div>Status</div>
+            <div />
           </div>
 
           {visibleTasks.map(
@@ -917,11 +950,39 @@ function Tasks() {
 
                   {/* ASSIGNEE */}
 
+                  {/* ASSIGNEE */}
+
                   <div className="task-assignee-cell">
-                    <span className="task-assignee">
-                      {task.assignee ??
-                        "Unassigned"}
-                    </span>
+                    <select
+                      className={`task-assignee ${task.assignee
+                          ?.toLowerCase()
+                          .replace(/\s+/g, "-") ??
+                        "unassigned"
+                        }`}
+                      value={
+                        task.assignee ??
+                        "Unassigned"
+                      }
+                      onChange={(
+                        event,
+                      ) =>
+                        updateAssignee(
+                          task,
+                          event.target.value,
+                        )
+                      }
+                    >
+                      {assignees.map(
+                        (assignee) => (
+                          <option
+                            key={assignee}
+                            value={assignee}
+                          >
+                            {assignee}
+                          </option>
+                        ),
+                      )}
+                    </select>
                   </div>
 
                   {/* PRIORITY */}
@@ -1134,8 +1195,12 @@ function Tasks() {
                   {assignees.map(
                     (assignee) => (
                       <option
-                        key={assignee}
-                        value={assignee}
+                        key={
+                          assignee
+                        }
+                        value={
+                          assignee
+                        }
                       >
                         {assignee}
                       </option>
