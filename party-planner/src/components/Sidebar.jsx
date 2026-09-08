@@ -1,10 +1,25 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+
+import { signOut } from "firebase/auth";
+
+import { auth } from "../services/firebase";
 
 function Sidebar() {
+  const navigate = useNavigate();
+
   const getNavClass = ({ isActive }) =>
     isActive
       ? "sidebar-link active"
       : "sidebar-link";
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
+  };
 
   return (
     <aside className="sidebar">
@@ -111,6 +126,15 @@ function Sidebar() {
         <span>
           Guests, food, drinks & decor
         </span>
+
+        <button
+          type="button"
+          className="sidebar-logout"
+          onClick={handleLogout}
+        >
+          <span className="nav-icon">↪</span>
+          Sign Out
+        </button>
       </div>
     </aside>
   );

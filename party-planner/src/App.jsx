@@ -1,6 +1,11 @@
-import { Routes, Route } from "react-router-dom";
+import {
+    Routes,
+    Route,
+    Navigate,
+} from "react-router-dom";
 
 import Sidebar from "./components/Sidebar";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 import Dashboard from "./pages/Dashboard";
 import Guests from "./pages/Guests";
@@ -9,45 +14,98 @@ import Shopping from "./pages/Shopping";
 import Decorations from "./pages/Decorations";
 import Tasks from "./pages/Tasks";
 import Notes from "./pages/Notes";
+import Login from "./pages/Login";
+
+import Invite from "./pages/Invite";
+import RSVP from "./pages/RSVP";
+
+function AdminLayout() {
+    return (
+        <ProtectedRoute>
+            <div className="app">
+                <Sidebar />
+
+                <main className="main-content">
+                    <Routes>
+                        <Route
+                            path="/"
+                            element={<Dashboard />}
+                        />
+
+                        <Route
+                            path="/guests"
+                            element={<Guests />}
+                        />
+
+                        <Route
+                            path="/food-drinks"
+                            element={<FoodDrinks />}
+                        />
+
+                        <Route
+                            path="/shopping"
+                            element={<Shopping />}
+                        />
+
+                        <Route
+                            path="/decorations"
+                            element={<Decorations />}
+                        />
+
+                        <Route
+                            path="/tasks"
+                            element={<Tasks />}
+                        />
+
+                        <Route
+                            path="/notes"
+                            element={<Notes />}
+                        />
+                    </Routes>
+                </main>
+            </div>
+        </ProtectedRoute>
+    );
+}
 
 function App() {
-  return (
-    <div className="app">
-      <Sidebar />
-
-      <main className="main-content">
+    return (
         <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/guests" element={<Guests />} />
+            {/* PUBLIC */}
+            <Route
+                path="/invite"
+                element={<Invite />}
+            />
 
-          <Route
-            path="/food-drinks"
-            element={<FoodDrinks />}
-          />
+            <Route
+                path="/invite/RSVP"
+                element={<RSVP />}
+            />
 
-          <Route
-            path="/shopping"
-            element={<Shopping />}
-          />
+            {/* LOGIN */}
+            <Route
+                path="/login"
+                element={<Login />}
+            />
 
-          <Route
-            path="/decorations"
-            element={<Decorations />}
-          />
+            {/* PRIVATE ADMIN */}
+            <Route
+                path="/*"
+                element={<AdminLayout />}
+            />
 
-          <Route
-            path="/tasks"
-            element={<Tasks />}
-          />
-
-          <Route
-            path="/notes"
-            element={<Notes />}
-          />
+            {/* FALLBACK */}
+            <Route
+                path="*"
+                element={
+                    <Navigate
+                        to="/invite"
+                        replace
+                    />
+                }
+            />
         </Routes>
-      </main>
-    </div>
-  );
+    );
 }
 
 export default App;
