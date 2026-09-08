@@ -30,11 +30,19 @@ const priorities = [
   "High",
 ];
 
+const assignees = [
+  "Unassigned",
+  "Mattie",
+  "Nick",
+  "Both",
+];
+
 const getDefaultFormData = () => ({
   title: "",
   dueDate: "",
   status: "Not Started",
   priority: "Medium",
+  assignee: "Unassigned",
   notes: "",
 });
 
@@ -243,10 +251,10 @@ function Tasks() {
     const difference =
       Math.ceil(
         (due - today) /
-          (1000 *
-            60 *
-            60 *
-            24),
+        (1000 *
+          60 *
+          60 *
+          24),
       );
 
     return (
@@ -332,19 +340,19 @@ function Tasks() {
     tasks.filter(
       (task) =>
         task.priority ===
-          "High" &&
+        "High" &&
         task.status !==
-          "Complete",
+        "Complete",
     ).length;
 
   const progress =
     tasks.length === 0
       ? 0
       : Math.round(
-          (completedCount /
-            tasks.length) *
-            100,
-        );
+        (completedCount /
+          tasks.length) *
+        100,
+      );
 
   /*
    * ================================
@@ -463,6 +471,9 @@ function Tasks() {
         priority:
           formData.priority,
 
+        assignee:
+          formData.assignee,
+
         notes:
           formData.notes.trim(),
 
@@ -535,6 +546,10 @@ function Tasks() {
       status:
         task.status ??
         "Not Started",
+
+      assignee:
+        task.assignee ??
+        "Unassigned",
 
       priority:
         task.priority ??
@@ -621,7 +636,7 @@ function Tasks() {
     async (task) => {
       const nextStatus =
         task.status ===
-        "Complete"
+          "Complete"
           ? "Not Started"
           : "Complete";
 
@@ -758,7 +773,7 @@ function Tasks() {
               key={filter}
               className={
                 activeFilter ===
-                filter
+                  filter
                   ? "menu-tab active"
                   : "menu-tab"
               }
@@ -798,27 +813,30 @@ function Tasks() {
 
             {tasks.length ===
               0 && (
-              <button
-                type="button"
-                className="primary-button"
-                onClick={
-                  openAddForm
-                }
-              >
-                + Add Task
-              </button>
-            )}
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={
+                    openAddForm
+                  }
+                >
+                  + Add Task
+                </button>
+              )}
           </div>
         </div>
       ) : (
         <section className="task-list-card">
           <div className="task-list-header">
-            <div />
-            <div>Task</div>
-            <div>Due</div>
-            <div>Priority</div>
-            <div>Status</div>
-            <div />
+            <div className="task-list-header">
+              <div />
+              <div>Task</div>
+              <div>Due</div>
+              <div>Assignee</div>
+              <div>Priority</div>
+              <div>Status</div>
+              <div />
+            </div>
           </div>
 
           {visibleTasks.map(
@@ -833,7 +851,7 @@ function Tasks() {
                 <div
                   className={
                     task.status ===
-                    "Complete"
+                      "Complete"
                       ? "task-row complete"
                       : overdue
                         ? "task-row overdue"
@@ -848,7 +866,7 @@ function Tasks() {
                       type="button"
                       className={
                         task.status ===
-                        "Complete"
+                          "Complete"
                           ? "task-check checked"
                           : "task-check"
                       }
@@ -859,7 +877,7 @@ function Tasks() {
                       }
                     >
                       {task.status ===
-                      "Complete"
+                        "Complete"
                         ? "✓"
                         : ""}
                     </button>
@@ -894,6 +912,15 @@ function Tasks() {
                       {formatDate(
                         task.dueDate,
                       )}
+                    </span>
+                  </div>
+
+                  {/* ASSIGNEE */}
+
+                  <div className="task-assignee-cell">
+                    <span className="task-assignee">
+                      {task.assignee ??
+                        "Unassigned"}
                     </span>
                   </div>
 
@@ -991,7 +1018,7 @@ function Tasks() {
           ) => {
             if (
               event.target ===
-                event.currentTarget &&
+              event.currentTarget &&
               !saving
             ) {
               resetForm();
@@ -1086,6 +1113,31 @@ function Tasks() {
                         }
                       >
                         {priority}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+
+              <label>
+                Assignee
+
+                <select
+                  name="assignee"
+                  value={
+                    formData.assignee
+                  }
+                  onChange={
+                    handleChange
+                  }
+                >
+                  {assignees.map(
+                    (assignee) => (
+                      <option
+                        key={assignee}
+                        value={assignee}
+                      >
+                        {assignee}
                       </option>
                     ),
                   )}
