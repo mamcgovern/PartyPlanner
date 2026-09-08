@@ -23,6 +23,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Check repository files
+        run: |
+          pwd
+          ls -la
+          git branch --show-current
+          git log -1 --oneline
+          test -f package-lock.json && echo "package-lock.json FOUND" || echo "package-lock.json MISSING"
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
