@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import inviteHeader from "../assets/invite-header.png";
 
 function Invite() {
     return (
@@ -6,6 +7,12 @@ function Invite() {
             <div className="invite-card">
 
                 <div className="invite-top">
+                    <img
+                        src={inviteHeader}
+                        alt="Mattie's 25th Birthday Halloween Party"
+                        className="invite-header"
+                    />
+
                     <span className="invite-eyebrow">
                         You&apos;re Invited
                     </span>

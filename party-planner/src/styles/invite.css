@@ -179,6 +179,19 @@
     font-size: 0.72rem;
 }
 
+.invite-card {
+  overflow: hidden;
+}
+
+.invite-header {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 12 / 5;
+  object-fit: cover;
+  margin-bottom: 30px;
+}
+
 
 /* =========================================================
    RSVP
@@ -359,6 +372,53 @@
 .invite-secondary-button:hover {
     border-color: var(--orange);
     color: var(--orange);
+}
+
+/* ==========================================
+   RSVP MEMBER CARDS
+   ========================================== */
+
+.rsvp-member-card {
+    margin-bottom: 20px;
+    padding: 22px;
+    background: var(--surface-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-medium);
+}
+
+.rsvp-member-header {
+    margin-bottom: 20px;
+}
+
+.rsvp-member-header .invite-eyebrow {
+    margin-bottom: 5px;
+}
+
+.rsvp-member-header h2 {
+    margin: 0;
+    color: var(--text);
+    font-family: "Playfair Display", serif;
+    font-size: 1.55rem;
+}
+
+.rsvp-member-card .rsvp-field:last-child {
+    margin-bottom: 0;
+}
+
+.rsvp-back-button {
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.rsvp-required-note {
+    margin: 12px 0 0;
+    color: var(--text-soft);
+    text-align: center;
+    font-size: 0.72rem;
+    line-height: 1.5;
 }
 
 

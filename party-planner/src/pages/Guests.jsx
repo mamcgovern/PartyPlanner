@@ -9,6 +9,7 @@ import {
     collection,
     deleteDoc,
     doc,
+    getDoc,
     onSnapshot,
     serverTimestamp,
     setDoc,
@@ -37,6 +38,12 @@ const getDefaultFormData = () => ({
     foodNotes: "",
     notes: "",
 });
+
+const normalizeName = (name) =>
+    name
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
 
 function Guests() {
     const [guests, setGuests] =
@@ -156,6 +163,171 @@ function Guests() {
                 );
 
                 setLoading(false);
+            },
+        );
+
+        return unsubscribe;
+    }, []);
+
+    /*
+ * ================================
+ * SYNC PUBLIC RSVPS
+ * ================================
+ *
+ * Public RSVPs are stored separately
+ * from the private guest records.
+ *
+ * This listener copies the public RSVP
+ * information into the private guest list
+ * so the admin list stays up to date.
+ */
+
+    useEffect(() => {
+        const submissionsRef = collection(
+            db,
+            "rsvpSubmissions",
+        );
+
+        const unsubscribe = onSnapshot(
+            submissionsRef,
+            async (snapshot) => {
+                for (const submissionDoc of snapshot.docs) {
+                    const submission =
+                        submissionDoc.data();
+
+                    const guestId =
+                        submission.guestId;
+
+                    if (
+                        !guestId ||
+                        !submission.guest
+                    ) {
+                        continue;
+                    }
+
+                    try {
+                        const guestRef = doc(
+                            db,
+                            "parties",
+                            PARTY_ID,
+                            "guests",
+                            guestId,
+                        );
+
+                        const guestSnapshot =
+                            await getDoc(guestRef);
+
+                        /*
+                         * The guest may have been
+                         * deleted from the admin list.
+                         */
+                        if (
+                            !guestSnapshot.exists()
+                        ) {
+                            continue;
+                        }
+
+                        const currentGuest =
+                            guestSnapshot.data();
+
+                        const guestAttending =
+                            submission.guest
+                                .attending === "yes"
+                                ? "Attending"
+                                : "Declined";
+
+                        const guestFoodNotes =
+                            submission.guest
+                                .dietaryRestrictions ??
+                            "";
+
+                        /*
+                         * Determine the plus-one status.
+                         */
+
+                        let plusOneRsvp =
+                            "No Response";
+
+                        let plusOneFoodNotes =
+                            "";
+
+                        if (
+                            submission.plusOne
+                        ) {
+                            plusOneRsvp =
+                                submission.plusOne
+                                    .attending ===
+                                    "yes"
+                                    ? "Attending"
+                                    : "Declined";
+
+                            plusOneFoodNotes =
+                                submission.plusOne
+                                    .dietaryRestrictions ??
+                                "";
+                        }
+
+                        /*
+                         * Only write to Firestore if
+                         * something actually changed.
+                         */
+
+                        const updates = {};
+
+                        if (
+                            currentGuest.rsvp !==
+                            guestAttending
+                        ) {
+                            updates.rsvp =
+                                guestAttending;
+                        }
+
+                        if (
+                            currentGuest.foodNotes !==
+                            guestFoodNotes
+                        ) {
+                            updates.foodNotes =
+                                guestFoodNotes;
+                        }
+
+                        if (
+                            currentGuest.plusOneRsvp !==
+                            plusOneRsvp
+                        ) {
+                            updates.plusOneRsvp =
+                                plusOneRsvp;
+                        }
+
+                        /*
+                         * Only update the guest record
+                         * when necessary.
+                         */
+
+                        if (
+                            Object.keys(updates)
+                                .length > 0
+                        ) {
+                            updates.updatedAt =
+                                serverTimestamp();
+
+                            await updateDoc(
+                                guestRef,
+                                updates,
+                            );
+                        }
+                    } catch (error) {
+                        console.error(
+                            "Error syncing RSVP to guest list:",
+                            error,
+                        );
+                    }
+                }
+            },
+            (error) => {
+                console.error(
+                    "Error listening for RSVP submissions:",
+                    error,
+                );
             },
         );
 
@@ -482,6 +654,15 @@ function Guests() {
             try {
                 setSaving(true);
 
+                let guestId =
+                    editingGuestId;
+
+                /*
+                 * ============================
+                 * SAVE PRIVATE GUEST RECORD
+                 * ============================
+                 */
+
                 if (editingGuestId) {
                     await updateDoc(
                         doc(
@@ -494,26 +675,61 @@ function Guests() {
                         guestData,
                     );
                 } else {
-                    await addDoc(
-                        collection(
-                            db,
-                            "parties",
-                            PARTY_ID,
-                            "guests",
-                        ),
-                        {
-                            ...guestData,
+                    const newGuest =
+                        await addDoc(
+                            collection(
+                                db,
+                                "parties",
+                                PARTY_ID,
+                                "guests",
+                            ),
+                            {
+                                ...guestData,
 
-                            createdAt:
-                                serverTimestamp(),
-                        },
-                    );
+                                createdAt:
+                                    serverTimestamp(),
+                            },
+                        );
+
+                    guestId = newGuest.id;
                 }
 
                 /*
-                 * CLOSE THE MODAL ONLY
-                 * AFTER FIRESTORE SAVES
-                 * SUCCESSFULLY.
+                 * ============================
+                 * SAVE PUBLIC RSVP LOOKUP
+                 *
+                 * This document contains ONLY
+                 * information that the public
+                 * RSVP page needs.
+                 * ============================
+                 */
+
+                await setDoc(
+                    doc(
+                        db,
+                        "parties",
+                        PARTY_ID,
+                        "rsvpLookup",
+                        guestId,
+                    ),
+                    {
+                        name,
+
+                        nameLower:
+                            normalizeName(name),
+
+                        plusOne,
+
+                        invited: true,
+
+                        updatedAt:
+                            serverTimestamp(),
+                    },
+                );
+
+                /*
+                 * CLOSE MODAL ONLY AFTER BOTH
+                 * FIRESTORE SAVES SUCCEED.
                  */
 
                 setShowForm(false);
@@ -580,12 +796,30 @@ function Guests() {
     const handleDelete =
         async (guestId) => {
             try {
+                /*
+                 * Delete private guest record
+                 */
+
                 await deleteDoc(
                     doc(
                         db,
                         "parties",
                         PARTY_ID,
                         "guests",
+                        guestId,
+                    ),
+                );
+
+                /*
+                 * Delete public RSVP lookup
+                 */
+
+                await deleteDoc(
+                    doc(
+                        db,
+                        "parties",
+                        PARTY_ID,
+                        "rsvpLookup",
                         guestId,
                     ),
                 );
@@ -597,69 +831,162 @@ function Guests() {
             }
         };
 
-    /*
-     * ================================
-     * DIRECT RSVP UPDATE
-     * ================================
-     */
+/*
+ * ================================
+ * DIRECT RSVP UPDATE
+ * ================================
+ */
 
-    const updateGuestRsvp =
-        async (
+const updateGuestRsvp = async (guestId, rsvp) => {
+    try {
+        const guestRef = doc(
+            db,
+            "parties",
+            PARTY_ID,
+            "guests",
             guestId,
-            rsvp,
-        ) => {
-            try {
-                await updateDoc(
-                    doc(
-                        db,
-                        "parties",
-                        PARTY_ID,
-                        "guests",
-                        guestId,
-                    ),
-                    {
-                        rsvp,
+        );
 
-                        updatedAt:
-                            serverTimestamp(),
-                    },
-                );
-            } catch (error) {
-                console.error(
-                    "Error updating RSVP:",
-                    error,
-                );
-            }
-        };
-
-    const updatePlusOneRsvp =
-        async (
+        const submissionRef = doc(
+            db,
+            "rsvpSubmissions",
             guestId,
-            plusOneRsvp,
-        ) => {
-            try {
-                await updateDoc(
-                    doc(
-                        db,
-                        "parties",
-                        PARTY_ID,
-                        "guests",
-                        guestId,
-                    ),
-                    {
-                        plusOneRsvp,
+        );
 
-                        updatedAt:
-                            serverTimestamp(),
-                    },
-                );
-            } catch (error) {
-                console.error(
-                    "Error updating plus-one RSVP:",
-                    error,
-                );
+        /*
+         * Get the existing public RSVP submission.
+         */
+
+        const submissionSnapshot = await getDoc(
+            submissionRef,
+        );
+
+        /*
+         * Update the public submission first.
+         *
+         * This prevents the RSVP sync listener from
+         * seeing the old submission and immediately
+         * putting it back into the guest list.
+         */
+
+        if (submissionSnapshot.exists()) {
+            const submission =
+                submissionSnapshot.data();
+
+            let attending = "";
+
+            if (rsvp === "Attending") {
+                attending = "yes";
+            } else if (rsvp === "Declined") {
+                attending = "no";
+            } else if (rsvp === "Maybe") {
+                attending = "maybe";
             }
-        };
+
+            await updateDoc(
+                submissionRef,
+                {
+                    "guest.attending": attending,
+                    updatedAt: serverTimestamp(),
+                },
+            );
+        }
+
+        /*
+         * Now update the private guest record.
+         */
+
+        await updateDoc(
+            guestRef,
+            {
+                rsvp,
+                updatedAt: serverTimestamp(),
+            },
+        );
+    } catch (error) {
+        console.error(
+            "Error updating guest RSVP:",
+            error,
+        );
+    }
+};
+
+const updatePlusOneRsvp = async (
+    guestId,
+    plusOneRsvp,
+) => {
+    try {
+        const guestRef = doc(
+            db,
+            "parties",
+            PARTY_ID,
+            "guests",
+            guestId,
+        );
+
+        const submissionRef = doc(
+            db,
+            "rsvpSubmissions",
+            guestId,
+        );
+
+        /*
+         * Get the existing public RSVP submission.
+         */
+
+        const submissionSnapshot = await getDoc(
+            submissionRef,
+        );
+
+        /*
+         * Update the public submission first.
+         */
+
+        if (submissionSnapshot.exists()) {
+            let attending = "";
+
+            if (plusOneRsvp === "Attending") {
+                attending = "yes";
+            } else if (
+                plusOneRsvp === "Declined"
+            ) {
+                attending = "no";
+            } else if (
+                plusOneRsvp === "Maybe"
+            ) {
+                attending = "maybe";
+            }
+
+            await updateDoc(
+                submissionRef,
+                {
+                    "plusOne.attending":
+                        attending,
+                    updatedAt:
+                        serverTimestamp(),
+                },
+            );
+        }
+
+        /*
+         * Now update the private guest record.
+         */
+
+        await updateDoc(
+            guestRef,
+            {
+                plusOneRsvp,
+                updatedAt:
+                    serverTimestamp(),
+            },
+        );
+    } catch (error) {
+        console.error(
+            "Error updating plus-one RSVP:",
+            error,
+        );
+    }
+};
 
     /*
      * ================================
@@ -766,8 +1093,8 @@ function Guests() {
             </header>
 
             {/* =========================
-    SUMMARY
-========================== */}
+                SUMMARY
+            ========================== */}
 
             <section className="guest-stats-grid">
                 <div className="guest-stat-card">
@@ -856,8 +1183,8 @@ function Guests() {
             </section>
 
             {/* =========================
-          EXPECTED ATTENDANCE
-      ========================== */}
+                EXPECTED ATTENDANCE
+            ========================== */}
 
             <section className="expected-attendance-card">
                 <div>
@@ -893,8 +1220,8 @@ function Guests() {
             </section>
 
             {/* =========================
-          SEARCH / FILTER
-      ========================== */}
+                SEARCH / FILTER
+            ========================== */}
 
             <section className="guest-toolbar">
                 <div className="guest-search">
@@ -943,8 +1270,8 @@ function Guests() {
             </section>
 
             {/* =========================
-          GUEST LIST
-      ========================== */}
+                GUEST LIST
+            ========================== */}
 
             {loading ? (
                 <div className="empty-page-card">
@@ -1162,8 +1489,8 @@ function Guests() {
             )}
 
             {/* =========================
-          ADD / EDIT MODAL
-      ========================== */}
+                ADD / EDIT MODAL
+            ========================== */}
 
             {showForm && (
                 <div
@@ -1246,14 +1573,20 @@ function Guests() {
                                     value={formData.rsvp}
                                     onChange={handleChange}
                                 >
-                                    {rsvpOptions.map((option) => (
-                                        <option
-                                            value={option}
-                                            key={option}
-                                        >
-                                            {option}
-                                        </option>
-                                    ))}
+                                    {rsvpOptions.map(
+                                        (option) => (
+                                            <option
+                                                value={
+                                                    option
+                                                }
+                                                key={
+                                                    option
+                                                }
+                                            >
+                                                {option}
+                                            </option>
+                                        ),
+                                    )}
                                 </select>
                             </label>
 
@@ -1262,18 +1595,30 @@ function Guests() {
 
                                 <select
                                     name="plusOneRsvp"
-                                    value={formData.plusOneRsvp}
-                                    onChange={handleChange}
-                                    disabled={!formData.plusOne.trim()}
+                                    value={
+                                        formData.plusOneRsvp
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
+                                    disabled={
+                                        !formData.plusOne.trim()
+                                    }
                                 >
-                                    {rsvpOptions.map((option) => (
-                                        <option
-                                            value={option}
-                                            key={option}
-                                        >
-                                            {option}
-                                        </option>
-                                    ))}
+                                    {rsvpOptions.map(
+                                        (option) => (
+                                            <option
+                                                value={
+                                                    option
+                                                }
+                                                key={
+                                                    option
+                                                }
+                                            >
+                                                {option}
+                                            </option>
+                                        ),
+                                    )}
                                 </select>
                             </label>
 
@@ -1282,8 +1627,12 @@ function Guests() {
 
                                 <textarea
                                     name="foodNotes"
-                                    value={formData.foodNotes}
-                                    onChange={handleChange}
+                                    value={
+                                        formData.foodNotes
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                     rows="3"
                                     placeholder="Allergies, vegetarian, dietary needs..."
                                 />
@@ -1294,8 +1643,12 @@ function Guests() {
 
                                 <textarea
                                     name="notes"
-                                    value={formData.notes}
-                                    onChange={handleChange}
+                                    value={
+                                        formData.notes
+                                    }
+                                    onChange={
+                                        handleChange
+                                    }
                                     rows="3"
                                     placeholder="Anything else you want to remember..."
                                 />
@@ -1305,8 +1658,12 @@ function Guests() {
                                 <button
                                     type="button"
                                     className="secondary-button"
-                                    onClick={resetForm}
-                                    disabled={saving}
+                                    onClick={
+                                        resetForm
+                                    }
+                                    disabled={
+                                        saving
+                                    }
                                 >
                                     Cancel
                                 </button>
@@ -1314,7 +1671,9 @@ function Guests() {
                                 <button
                                     type="submit"
                                     className="primary-button"
-                                    disabled={saving}
+                                    disabled={
+                                        saving
+                                    }
                                 >
                                     {saving
                                         ? "Saving..."
