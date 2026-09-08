@@ -1,7 +1,6 @@
 import {
     Routes,
     Route,
-    Navigate,
 } from "react-router-dom";
 
 import Sidebar from "./components/Sidebar";
@@ -15,9 +14,6 @@ import Decorations from "./pages/Decorations";
 import Tasks from "./pages/Tasks";
 import Notes from "./pages/Notes";
 import Login from "./pages/Login";
-
-import Invite from "./pages/Invite";
-import RSVP from "./pages/RSVP";
 
 function AdminLayout() {
     return (
@@ -71,17 +67,6 @@ function AdminLayout() {
 function App() {
     return (
         <Routes>
-            {/* PUBLIC */}
-            <Route
-                path="/invite"
-                element={<Invite />}
-            />
-
-            <Route
-                path="/invite/RSVP"
-                element={<RSVP />}
-            />
-
             {/* LOGIN */}
             <Route
                 path="/login"
@@ -92,17 +77,6 @@ function App() {
             <Route
                 path="/*"
                 element={<AdminLayout />}
-            />
-
-            {/* FALLBACK */}
-            <Route
-                path="*"
-                element={
-                    <Navigate
-                        to="/invite"
-                        replace
-                    />
-                }
             />
         </Routes>
     );

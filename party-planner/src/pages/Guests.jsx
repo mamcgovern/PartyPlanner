@@ -170,171 +170,6 @@ function Guests() {
     }, []);
 
     /*
- * ================================
- * SYNC PUBLIC RSVPS
- * ================================
- *
- * Public RSVPs are stored separately
- * from the private guest records.
- *
- * This listener copies the public RSVP
- * information into the private guest list
- * so the admin list stays up to date.
- */
-
-    useEffect(() => {
-        const submissionsRef = collection(
-            db,
-            "rsvpSubmissions",
-        );
-
-        const unsubscribe = onSnapshot(
-            submissionsRef,
-            async (snapshot) => {
-                for (const submissionDoc of snapshot.docs) {
-                    const submission =
-                        submissionDoc.data();
-
-                    const guestId =
-                        submission.guestId;
-
-                    if (
-                        !guestId ||
-                        !submission.guest
-                    ) {
-                        continue;
-                    }
-
-                    try {
-                        const guestRef = doc(
-                            db,
-                            "parties",
-                            PARTY_ID,
-                            "guests",
-                            guestId,
-                        );
-
-                        const guestSnapshot =
-                            await getDoc(guestRef);
-
-                        /*
-                         * The guest may have been
-                         * deleted from the admin list.
-                         */
-                        if (
-                            !guestSnapshot.exists()
-                        ) {
-                            continue;
-                        }
-
-                        const currentGuest =
-                            guestSnapshot.data();
-
-                        const guestAttending =
-                            submission.guest
-                                .attending === "yes"
-                                ? "Attending"
-                                : "Declined";
-
-                        const guestFoodNotes =
-                            submission.guest
-                                .dietaryRestrictions ??
-                            "";
-
-                        /*
-                         * Determine the plus-one status.
-                         */
-
-                        let plusOneRsvp =
-                            "No Response";
-
-                        let plusOneFoodNotes =
-                            "";
-
-                        if (
-                            submission.plusOne
-                        ) {
-                            plusOneRsvp =
-                                submission.plusOne
-                                    .attending ===
-                                    "yes"
-                                    ? "Attending"
-                                    : "Declined";
-
-                            plusOneFoodNotes =
-                                submission.plusOne
-                                    .dietaryRestrictions ??
-                                "";
-                        }
-
-                        /*
-                         * Only write to Firestore if
-                         * something actually changed.
-                         */
-
-                        const updates = {};
-
-                        if (
-                            currentGuest.rsvp !==
-                            guestAttending
-                        ) {
-                            updates.rsvp =
-                                guestAttending;
-                        }
-
-                        if (
-                            currentGuest.foodNotes !==
-                            guestFoodNotes
-                        ) {
-                            updates.foodNotes =
-                                guestFoodNotes;
-                        }
-
-                        if (
-                            currentGuest.plusOneRsvp !==
-                            plusOneRsvp
-                        ) {
-                            updates.plusOneRsvp =
-                                plusOneRsvp;
-                        }
-
-                        /*
-                         * Only update the guest record
-                         * when necessary.
-                         */
-
-                        if (
-                            Object.keys(updates)
-                                .length > 0
-                        ) {
-                            updates.updatedAt =
-                                serverTimestamp();
-
-                            await updateDoc(
-                                guestRef,
-                                updates,
-                            );
-                        }
-                    } catch (error) {
-                        console.error(
-                            "Error syncing RSVP to guest list:",
-                            error,
-                        );
-                    }
-                }
-            },
-            (error) => {
-                console.error(
-                    "Error listening for RSVP submissions:",
-                    error,
-                );
-            },
-        );
-
-        return unsubscribe;
-    }, []);
-
-    /*
      * ================================
      * TOTALS
      * ================================
@@ -831,162 +666,65 @@ function Guests() {
             }
         };
 
-/*
- * ================================
- * DIRECT RSVP UPDATE
- * ================================
- */
+    /*
+     * ================================
+     * DIRECT RSVP UPDATE
+     * ================================
+     */
 
-const updateGuestRsvp = async (guestId, rsvp) => {
-    try {
-        const guestRef = doc(
-            db,
-            "parties",
-            PARTY_ID,
-            "guests",
-            guestId,
-        );
-
-        const submissionRef = doc(
-            db,
-            "rsvpSubmissions",
-            guestId,
-        );
-
-        /*
-         * Get the existing public RSVP submission.
-         */
-
-        const submissionSnapshot = await getDoc(
-            submissionRef,
-        );
-
-        /*
-         * Update the public submission first.
-         *
-         * This prevents the RSVP sync listener from
-         * seeing the old submission and immediately
-         * putting it back into the guest list.
-         */
-
-        if (submissionSnapshot.exists()) {
-            const submission =
-                submissionSnapshot.data();
-
-            let attending = "";
-
-            if (rsvp === "Attending") {
-                attending = "yes";
-            } else if (rsvp === "Declined") {
-                attending = "no";
-            } else if (rsvp === "Maybe") {
-                attending = "maybe";
-            }
-
+    const updateGuestRsvp = async (
+        guestId,
+        rsvp,
+    ) => {
+        try {
             await updateDoc(
-                submissionRef,
+                doc(
+                    db,
+                    "parties",
+                    PARTY_ID,
+                    "guests",
+                    guestId,
+                ),
                 {
-                    "guest.attending": attending,
-                    updatedAt: serverTimestamp(),
-                },
-            );
-        }
-
-        /*
-         * Now update the private guest record.
-         */
-
-        await updateDoc(
-            guestRef,
-            {
-                rsvp,
-                updatedAt: serverTimestamp(),
-            },
-        );
-    } catch (error) {
-        console.error(
-            "Error updating guest RSVP:",
-            error,
-        );
-    }
-};
-
-const updatePlusOneRsvp = async (
-    guestId,
-    plusOneRsvp,
-) => {
-    try {
-        const guestRef = doc(
-            db,
-            "parties",
-            PARTY_ID,
-            "guests",
-            guestId,
-        );
-
-        const submissionRef = doc(
-            db,
-            "rsvpSubmissions",
-            guestId,
-        );
-
-        /*
-         * Get the existing public RSVP submission.
-         */
-
-        const submissionSnapshot = await getDoc(
-            submissionRef,
-        );
-
-        /*
-         * Update the public submission first.
-         */
-
-        if (submissionSnapshot.exists()) {
-            let attending = "";
-
-            if (plusOneRsvp === "Attending") {
-                attending = "yes";
-            } else if (
-                plusOneRsvp === "Declined"
-            ) {
-                attending = "no";
-            } else if (
-                plusOneRsvp === "Maybe"
-            ) {
-                attending = "maybe";
-            }
-
-            await updateDoc(
-                submissionRef,
-                {
-                    "plusOne.attending":
-                        attending,
+                    rsvp,
                     updatedAt:
                         serverTimestamp(),
                 },
             );
+        } catch (error) {
+            console.error(
+                "Error updating guest RSVP:",
+                error,
+            );
         }
+    };
 
-        /*
-         * Now update the private guest record.
-         */
-
-        await updateDoc(
-            guestRef,
-            {
-                plusOneRsvp,
-                updatedAt:
-                    serverTimestamp(),
-            },
-        );
-    } catch (error) {
-        console.error(
-            "Error updating plus-one RSVP:",
-            error,
-        );
-    }
-};
+    const updatePlusOneRsvp = async (
+        guestId,
+        plusOneRsvp,
+    ) => {
+        try {
+            await updateDoc(
+                doc(
+                    db,
+                    "parties",
+                    PARTY_ID,
+                    "guests",
+                    guestId,
+                ),
+                {
+                    plusOneRsvp,
+                    updatedAt:
+                        serverTimestamp(),
+                },
+            );
+        } catch (error) {
+            console.error(
+                "Error updating plus-one RSVP:",
+                error,
+            );
+        }
+    };
 
     /*
      * ================================
@@ -1433,18 +1171,13 @@ const updatePlusOneRsvp = async (
                                                 )}
                                             </select>
                                         </>
-                                    ) : (
-                                        <span className="guest-secondary-text">
-                                            —
-                                        </span>
-                                    )}
+                                    ) : null}
                                 </div>
 
                                 {/* FOOD NOTES */}
 
                                 <div className="guest-secondary-text">
-                                    {guest.foodNotes ||
-                                        "—"}
+                                    {guest.foodNotes || null}
                                 </div>
 
                                 {/* ACTIONS */}
